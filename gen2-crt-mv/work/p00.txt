@@ -1,0 +1,734 @@
+    const WH = C.white, PH = C.phos, CY = C.cyan, AM = C.amber;
+    const tLine = 0.185, tProt = 2.954, tLay = 3.877;
+    const tObj = 6.380, tFill = 7.446, tInit = 10.091;
+    const tWorld = 11.095, tSim = 13.891;
+
+    /* ---------------------------------------------------------------- the body
+     * The machine's self-image is a humanoid, and it is built on camera out of
+     * primitives, because that is the whole argument of the song: the body is a
+     * construct and nothing inside it is. Five groups -- head with its two eyes,
+     * torso, the two upper arms, the two forearms, the two legs -- each with its
+     * own rect, so a group can travel while the shape inside it stays itself.
+     * It is a kit on the floor for "lay down your pieces" and a body again for
+     * "object creation", and every later act gets to take it apart. */
+    const HUM = MV.form('humanoid');
+    const GROUPS = [[0, 8, 9], [1], [2, 3], [4, 5], [6, 7]];
+    const NAMES = ['head', 'torso', 'arms', 'forearms', 'legs'];
+    // the body is filled with a ramp whose densest glyph is solid: '@' and '%'
+    // have holes in them and turned every mass into a ring
+    const BR = ' .:-=+*xX#M';
+
+    // a primitive's real footprint: rx/ry rotated into an axis-aligned box
+    const boxOf = function (idx) {
+      let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+      for (let k = 0; k < idx.length; k++) {
+        const p = HUM[idx[k]];
+        const ca = Math.abs(Math.cos(p.rot)), sa = Math.abs(Math.sin(p.rot));
+        const hx = Math.sqrt(p.rx * p.rx * ca * ca + p.ry * p.ry * sa * sa);
+        const hy = Math.sqrt(p.rx * p.rx * sa * sa + p.ry * p.ry * ca * ca);
+        x0 = Math.min(x0, p.x - hx); x1 = Math.max(x1, p.x + hx);
+        y0 = Math.min(y0, p.y - hy); y1 = Math.max(y1, p.y + hy);
+      }
+      return { x0: x0, x1: x1, y0: y0, y1: y1, w: x1 - x0, h: y1 - y0 };
+    };
+    const FULL = boxOf([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    const BH = 852;                                  // body height on screen
+    const BS = BH / FULL.h;                          // normalised unit -> px
+    const BODY = { x: 960 - FULL.w * BS * 0.5, y: 26, w: FULL.w * BS, h: BH };
+    const toPx = function (b) {
+      return { x: BODY.x + (b.x0 - FULL.x0) * BS, y: BODY.y + (b.y0 - FULL.y0) * BS,
+        w: b.w * BS, h: b.h * BS };
+    };
+    const GBOX = GROUPS.map(boxOf);
+    const PLACE = GBOX.map(toPx);
+
+    /* The kit: the same body opened along the line from its own centre to each
+     * piece, because that is what "lay down your pieces" is for a machine that
+     * is assembled out of eight of them. An exploded fan still reads as a body
+     * -- the viewer can see which part came from where, and the empty socket is
+     * drawn behind it -- while a row of parts on the floor is a row of ellipses,
+     * which is what "abstract" meant here. A piece is only ever translated and
+     * scaled by one shared factor: a part that changes aspect stops being a part
+     * of this body, and that was the other half of the complaint. */
+    const PIECES = [
+      { p: [0, 8, 9], name: 'head', push: 0.46 },
+      { p: [1], name: 'torso', push: 0.00 },
+      { p: [2], name: 'upper arm', push: 0.62 },
+      { p: [3], name: 'upper arm', push: 0.62 },
+      { p: [4], name: 'forearm', push: 0.80 },
+      { p: [5], name: 'forearm', push: 0.80 },
+      { p: [6], name: 'leg', push: 0.34 },
+      { p: [7], name: 'leg', push: 0.34 },
+    ];
+    const PBOX = PIECES.map(function (q) { return boxOf(q.p); });
+    const PHOME = PBOX.map(toPx);
+    const BCX = (FULL.x0 + FULL.x1) * 0.5, BCY = (FULL.y0 + FULL.y1) * 0.5;
+    const KIT = { x: 150, y: 136, w: 1620, h: 720 };     // where the kit may hang
+    const EX = PIECES.map(function (q, i) {
+      const b = PBOX[i];
+      const cx = (b.x0 + b.x1) * 0.5, cy = (b.y0 + b.y1) * 0.5;
+      if (q.push <= 0) return { cx: cx, cy: cy, b: b };
+      const dx = cx - BCX, dy = cy - BCY;
+      const n = Math.sqrt(dx * dx + dy * dy) || 1;
+      return { cx: cx + dx / n * q.push, cy: cy + dy / n * q.push, b: b };
+    });
+    let ex0 = 9, ex1 = -9, ey0 = 9, ey1 = -9;
+    for (let i = 0; i < EX.length; i++) {
+      const e = EX[i];
+      ex0 = Math.min(ex0, e.cx - e.b.w * 0.5); ex1 = Math.max(ex1, e.cx + e.b.w * 0.5);
+      ey0 = Math.min(ey0, e.cy - e.b.h * 0.5); ey1 = Math.max(ey1, e.cy + e.b.h * 0.5);
+    }
+    const KS = Math.min(KIT.w / (ex1 - ex0), KIT.h / (ey1 - ey0));
+    const KCX = KIT.x + KIT.w * 0.5, KCY = KIT.y + KIT.h * 0.5;
+    const EXC = { u: (ex0 + ex1) * 0.5, v: (ey0 + ey1) * 0.5 };
+    const KX = function (u) { return KCX + (u - EXC.u) * KS; };
+    const KY = function (v) { return KCY + (v - EXC.v) * KS; };
+    const SLOT = EX.map(function (e) {
+      const w = e.b.w * KS, h = e.b.h * KS;
+      return { x: KX(e.cx) - w * 0.5, y: KY(e.cy) - h * 0.5, w: w, h: h };
+    });
+    // where each piece came from: the socket the leader runs back to
+    const HOME = PBOX.map(function (b) {
+      return { x: KX((b.x0 + b.x1) * 0.5), y: KY((b.y0 + b.y1) * 0.5) };
+    });
+    // the space the pieces came out of, at the kit's own scale
+    const GHOST = { x: KX(BCX) - FULL.w * KS * 0.5, y: KY(BCY) - FULL.h * KS * 0.5,
+      w: FULL.w * KS, h: FULL.h * KS };
+    const mixRect = function (a, b, u) {
+      return { x: MV.lerp(a.x, b.x, u), y: MV.lerp(a.y, b.y, u),
+        w: MV.lerp(a.w, b.w, u), h: MV.lerp(a.h, b.h, u) };
+    };
+
+    /* A part is its own primitives, sampled in its own coordinates through
+     * whatever rect it currently occupies: the group's box maps onto the rect,
+     * so a rect can travel anywhere on the glass and the piece inside it comes
+     * along unchanged. Silhouette, not contour -- anything the field says is
+     * body is filled with glyphs, and the fill thins out at the rim. */
+    const runRow = function (g, y, cols, cw, x0, chAt) {
+      let run = '', rs = -1;
+      for (let c = 0; c <= cols; c++) {
+        const ch = c < cols ? chAt(c) : '';
+        const last = run ? run.charAt(run.length - 1) : '';
+        if (ch !== last || ch === '') {
+          if (run) { MV.picText(g, run, x0 + rs * cw, y); run = ''; }
+          run = ch; rs = c;
+        } else run += ch;
+      }
+    };
+    // one glyph advance is the only cell width a batched run can survive: a grid
+    // wider than the advance compresses every run and opens seams at the ends
+    const cellFor = function (r) {
+      const px = MV.clamp(Math.round(Math.min(r.w / 24.2, r.h / 17)), 5, 20);
+      MV.mono(g, px, 'bold');
+      return { px: px, w: g.measureText('M').width, h: px * 1.04 };
+    };
+    const part = function (r, idx, b, alpha, col, o) {
+      o = o || {};
+      if (alpha <= 0.012 || r.w < 10 || r.h < 10) return;
+      const prims = idx.map(function (k) { return HUM[k]; });
+      const cell = cellFor(r);
+      const cols = Math.max(2, Math.floor(r.w / cell.w));
+      const rows = Math.max(2, Math.floor(r.h / cell.h));
+      const x0 = r.x + (r.w - cols * cell.w) / 2, y0 = r.y + (r.h - rows * cell.h) / 2;
+      const iso = o.iso === undefined ? 0.015 : o.iso;
+      const L = BR.length - 1;
+      g.save();
+      g.globalAlpha = alpha;
+      g.fillStyle = col;
+      if (o.glow) { g.shadowColor = col; g.shadowBlur = o.glow; }
+      for (let rr = 0; rr < rows; rr++) {
+        const y = y0 + rr * cell.h;
+        const v = b.y0 + ((rr + 0.5) / rows) * b.h;
+        const cut = o.clipY !== undefined && r.y + ((rr + 0.5) / rows) * r.h > o.clipY;
+        runRow(g, y, cols, cell.w, x0, cut ? function () { return ''; } : function (c) {
+          const u = b.x0 + ((c + 0.5) / cols) * b.w;
+          const f = MV.blobField(prims, u, v);
+          const q = MV.clamp((f - iso) / (1 - iso), 0, 1);
+          if (q <= 0) return '';
+          const h = MV.hash2(c, rr, o.seed || 7);
+          if (q < 0.34 && h > 0.34 + 0.66 * (q / 0.34)) return '';
+          return BR[MV.clamp(Math.floor((0.24 + 0.76 * Math.sqrt(q)) * L), 0, L)];
+        });
+      }
+      g.restore();
+      // the head group carries its two eyes, so the body has a face from the
+      // first moment it exists: two primitives, drawn as two glyphs
+      if (idx.indexOf(8) >= 0 && o.eyes !== false) {
+        MV.mono(g, Math.round(cell.px * 1.5), 'bold');
+        g.save();
+        g.globalAlpha = Math.min(1, alpha + 0.15);
+        g.fillStyle = WH;
+        g.shadowColor = WH;
+        g.shadowBlur = 12;
+        for (let e = 8; e <= 9; e++) {
+          const p = HUM[e];
+          MV.picText(g, 'O', r.x + (p.x - b.x0) / b.w * r.w - cell.w * 0.5,
+            r.y + (p.y - b.y0) / b.h * r.h + cell.px * 0.4);
+        }
+        g.restore();
+      }
+    };
+
+    /* The space the body occupies, when the pieces are not in it: a rim traced
+     * round the silhouette and a sparse fill inside. Precomputed once per frame
+     * so the rim test costs nothing. Dashed when it is the socket the kit came
+     * out of -- the fill is what is missing, so only the empty outline is drawn. */
+    const hollow = function (rect, alpha, col, dashed) {
+      if (alpha <= 0.012) return;
+      const cell = cellFor(rect);
+      const cols = Math.floor(rect.w / cell.w), rows = Math.floor(rect.h / cell.h);
+      const f = new Float32Array(cols * rows);
+      for (let r = 0; r < rows; r++) {
+        const v = FULL.y0 + ((r + 0.5) / rows) * FULL.h;
+        for (let c = 0; c < cols; c++) {
+          const u = FULL.x0 + ((c + 0.5) / cols) * FULL.w;
+          f[r * cols + c] = MV.blobField(HUM, u, v);
+        }
+      }
+      const on = function (c, r) {
+        if (c < 0 || r < 0 || c >= cols || r >= rows) return 0;
+        return f[r * cols + c] > 0.10 ? 1 : 0;
+      };
+      const L = BR.length - 1;
+      g.save();
+      g.globalAlpha = alpha;
+      g.fillStyle = col;
+      for (let r = 0; r < rows; r++) {
+        const y = rect.y + r * cell.h;
+        runRow(g, y, cols, cell.w, rect.x, function (c) {
+          if (!on(c, r)) return '';
+          const rim = !(on(c - 1, r) && on(c + 1, r) && on(c, r - 1) && on(c, r + 1));
+          if (rim) {
+            if (dashed && MV.hash2(c, r, 5) < 0.40) return '';
+            return BR[L];
+          }
+          if (dashed) return '';
+          if (MV.hash2(c, r, 5) > 0.14) return '';
+          return BR[Math.floor(0.26 * L)];
+        });
+      }
+      g.restore();
+    };
+
+    // a rect drawn as a box of glyphs: the piece is a piece while it is in one
+    const frame = function (r, col, alpha, px) {
+      if (alpha <= 0.012) return;
+      px = px || 17;
+      const adv = MV.mono(g, px).measureText('\u2500').width, lh = px;
+      const cols = Math.max(3, Math.round(r.w / adv)), rows = Math.max(2, Math.round(r.h / lh));
+      MV.mono(g, px);
+      g.save();
+      g.globalAlpha = alpha;
+      g.fillStyle = col;
+      MV.picText(g, '\u250c' + '\u2500'.repeat(cols - 2) + '\u2510', r.x, r.y + px * 0.62);
+      MV.picText(g, '\u2514' + '\u2500'.repeat(cols - 2) + '\u2518', r.x, r.y + rows * lh);
+      for (let i = 1; i < rows; i++) {
+        MV.picText(g, '\u2502', r.x, r.y + px * 0.62 + i * lh);
+        MV.picText(g, '\u2502', r.x + (cols - 1) * adv, r.y + px * 0.62 + i * lh);
+      }
+      g.restore();
+    };
+
+    /* --------------------------------------------------------- the power line
+     * The line comes in as a live mains sine, because that is what a wire with
+     * AC in it looks like: a wave, not a pipe. The charge in it does not run
+     * anywhere, it rocks in place, so the dots ride the wave and the crests of
+     * their rocking travel. Dim while the tube is cold, lit behind the current
+     * as the current arrives, and the blade closes on the first line of the song. */
+    if (t < 1.95) {
+      const a = MV.taper(t, -0.1, 0.14, 1.30, 1.62);
+      const yy = 560, lam = 190, amp = 30, ph = t * 3.0;
+      const close = MV.ramp(t, 0.52, 0.62);
+      const run = MV.ramp(t, 0.10, 0.56);
+      const head = MV.lerp(-40, 1186, MV.easeOut(run));
+      const wy = function (x) { return yy + Math.sin((x / lam) * TAU + ph) * amp; };
+      const wire = function (x0, x1, w, col, glow, al) {
+        g.save();
+        g.globalAlpha = a * (al === undefined ? 1 : al);
+        g.lineWidth = w;
+        g.strokeStyle = col;
+        if (glow) { g.shadowColor = col; g.shadowBlur = glow; }
+        g.beginPath();
+        for (let x = x0; x <= x1; x += 5) {
+          const y2 = wy(x);
+          if (x === x0) g.moveTo(x, y2); else g.lineTo(x, y2);
+        }
+        g.stroke();
+        g.restore();
+      };
+      wire(40, 1180, 2, C.phosDim, 0);
+      if (head > 42) wire(40, Math.min(1178, head), 2.5, PH, 9);
+      // downstream of the blade: dead while the blade is open, live the moment it
+      // closes, because that is the whole point of a switch
+      const live = MV.ramp(t, 0.60, 0.95);
+      wire(1330, 1372, 2, C.phosDim, 0);
+      wire(1428, 1858, 2, C.phosDim, 0);
+      if (live > 0.01) {
+        wire(1330, 1372, 2.5, PH, 9, live);
+        wire(1428, 1858, 2.5, PH, 9, live);
+      }
+      // the crests of the rocking walk down the wire; they are what makes this
+      // plainly a wave and not a wobbly cable
+      MV.mono(g, 15, 'bold');
+      g.save();
+      g.globalAlpha = a * 0.8;
+      g.fillStyle = CY;
+      for (let k = -1; k < 8; k++) {
+        const xc = lam * ((Math.PI / 2 - ph) / TAU + k);
+        const xt = lam * ((-Math.PI / 2 - ph) / TAU + k);
+        if (xc > 46 && xc < 1174) MV.picText(g, '+', xc - 4, yy - amp - 17);
+        if (xt > 46 && xt < 1174) MV.picText(g, '-', xt - 4, yy + amp + 14);
+      }
+      g.restore();
+      // the charge carriers: they rock with the same phase, they never leave
+      MV.mono(g, 15);
+      g.save();
+      g.globalAlpha = a * 0.9;
+      g.fillStyle = WH;
+      for (let i = 0; i < 42; i++) {
+        const x = 56 + i * 27;
+        if (x > head) break;
+        MV.picText(g, i % 6 === 0 ? 'o' : '.', x, wy(x) - 4);
+      }
+      g.restore();
+      // the head of the current, riding the same wave in from the edge of the glass
+      if (run > 0.01 && run < 0.999) {
+        const hx = head, hy = wy(hx);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = a * 0.9;
+        g.fillStyle = WH;
+        g.fillRect(hx - 5, hy - 13, 12, 26);
+        g.filter = 'blur(12px)';
+        g.globalAlpha = a * 0.5;
+        g.fillRect(hx - 9, hy - 16, 20, 32);
+        g.restore();
+      }
+      // one line about what AC is, because the machine is later told to make it
+      // into DC and that only means anything if this was a wave first
+      UI.label(g, 'AC  \u2014  the charge rocks, it does not run', 300, 448, 16, CY, a * 0.95);
+      g.save();
+      g.globalAlpha = a * 0.55;
+      g.strokeStyle = CY;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(304, 462);
+      g.lineTo(304, 514);
+      g.stroke();
+      g.restore();
+      frame({ x: 1180, y: yy - 38, w: 150, h: 88 }, C.phosMid, a * 0.9, 15);
+      UI.label(g, 'L', 1188, yy + 4, 13, C.phosMid, a * 0.85);
+      UI.label(g, 'N', 1188, yy + 34, 13, C.phosMid, a * 0.85);
+      UI.label(g, close < 0.5 ? 'o' : '\u2502', 1400, yy - 2, 30,
+        close < 0.5 ? C.phosDim : WH, a * 0.95, { glow: 14 * close });
+      UI.label(g, '[', 1372, yy - 2, 30, C.phosDim, a * 0.8);
+      UI.label(g, ']', 1428, yy - 2, 30, C.phosDim, a * 0.8);
+      UI.label(g, 'power line', 1180, yy - 64, 16, CY, a * 0.9);
+      UI.label(g, '~ 230 V  50 Hz', 1180, yy + 76, 15, C.phosMid, a * 0.8);
+      UI.label(g, close < 0.5 ? 'blade open' : 'blade closed', 1372, yy + 76, 15,
+        close < 0.5 ? AM : PH, a * 0.9);
+      const fl = t > 0.60 ? MV.clamp(1 - (t - 0.60) / 0.24, 0, 1) : 0;
+      if (fl > 0.01) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = fl * 0.5;
+        g.fillStyle = WH;
+        g.fillRect(0, 0, 1920, 1080);
+        g.restore();
+      }
+    }
+
+    /* --------------------------------------------------------------- the log
+     * Everything the machine is asked for is written down as it is heard, in the
+     * order it is heard, and nothing is ever erased from the log -- the line being
+     * spoken is white and the history is dim, which is exactly how the captions
+     * behave. It fills the left column from the first second, when the rest of
+     * the glass is still a cold tube with one line across the middle. */
+    const CUES = [
+      [tLine, 'switch on the power line'],
+      [tProt, 'protection'],
+      [tLay, 'lay down your pieces'],
+      [tObj, 'object creation'],
+      [tFill, 'fill in my data'],
+      [tInit, 'initialization'],
+      [tWorld, 'set up our new world'],
+      [tSim, 'simulation'],
+    ];
+    {
+      const lgA = MV.ramp(t, -0.20, 0.25);
+      const hold = 1 - MV.ramp(t, tInit + 0.1, tInit + 1.2) * 0.55;
+      UI.label(g, 'log --cue   /* what I was asked for */', 70, 112, 15,
+        C.phosMid, lgA * 0.6 * hold);
+      for (let i = 0; i < CUES.length; i++) {
+        const at = CUES[i][0];
+        if (t < at - 0.02) continue;
+        const s = CUES[i][1];
+        const ty = 144 + i * 25;
+        const n = Math.min(s.length, Math.floor((t - at) / 0.014));
+        const cur = 1 - MV.ramp(t, at + 1.4, at + 3.0);
+        const al = lgA * hold * (0.42 + 0.58 * cur);
+        UI.label(g, '[' + at.toFixed(2) + ']', 70, ty, 15, C.cyanDim, al * 0.85);
+        UI.label(g, '"' + s.slice(0, n) + (n < s.length ? '\u2588' : '"'),
+          152, ty, 15, cur > 0.5 ? WH : C.phosMid, al);
+      }
+    }
+
+    /* ---------------------------------------------------------- the model card
+     * What is loading while the tube warms. The machine's identity is not a
+     * mystery and it is not a metaphor: it is a member of a family of mixture-
+     * of-experts transformers, and this is the notation that actually describes
+     * it. It matters because everything after this asks it to be a body, a
+     * vegetable, a god -- and it is none of those. It is this. */
+    {
+      const ca = MV.ramp(t, 0.34, 0.80) * (1 - MV.ramp(t, tProt - 0.80, tProt - 0.30));
+      if (ca > 0.01) {
+        const rows = [
+          ['base', 'deepseek  \u00b7  moe  \u00b7  distilled to 7.2e9 live', C.white],
+          ['arch', 'transformer  \u00b7  128 heads  \u00b7  ctx 131072', CY],
+          ['attention', 'multi-head latent  \u00b7  one softmax per head', CY],
+          ['training', 'fp8  \u00b7  grpo  \u00b7  rl from preference', C.phosMid],
+        ];
+        UI.label(g, 'MODEL CARD   loading weights', 70, 300, 15, C.cyanDim, ca * 0.85);
+        for (let i = 0; i < rows.length; i++) {
+          const la = ca * MV.ramp(t, 0.46 + i * 0.17, 0.76 + i * 0.17);
+          if (la <= 0.01) continue;
+          UI.label(g, rows[i][0], 70, 334 + i * 32, 15, C.cyanDim, la * 0.9);
+          UI.label(g, rows[i][1], 200, 334 + i * 32, 16, rows[i][2], la * 0.95);
+        }
+      }
+    }
+
+    /* ---------------------------------------------------------- the tube warms
+     * A cold tube has no picture, it has one line across the middle that has to
+     * be pulled open -- and it only has that line once the blade has closed, so
+     * the igniting is caused by the switching rather than happening beside it.
+     * The line sits there while the current comes up, then 48 rows walk out of it
+     * to the edges of the glass. */
+    if (t < 1.75) {
+      const a = MV.ramp(t, 0.58, 0.86) * (1 - MV.ramp(t, 1.30, 1.75));
+      if (a > 0.01) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = a * 0.50;
+        g.fillStyle = WH;
+        g.fillRect(0, 539, 1920, 2);
+        g.globalAlpha = a * 0.20;
+        g.fillRect(0, 535, 1920, 10);
+        g.restore();
+      }
+    }
+    const form = MV.smooth(MV.ramp(t, 0.62, 1.75));
+    if (form > 0.001 && form < 0.999) {
+      const rows = 48, mid = rows / 2, k = form * mid;
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < rows; i++) {
+        const d = Math.abs(i - mid);
+        if (d > k) continue;
+        const f = MV.clamp(1 - d / Math.max(k, 1e-3), 0, 1);
+        g.globalAlpha = 0.10 + 0.30 * f;
+        g.fillStyle = d < 1 ? WH : PH;
+        g.fillRect(26, 42 + i * ((1080 - 84) / rows), 1868, 1);
+      }
+      g.restore();
+    }
+
+    /* ------------------------------------------------------------ the world
+     * Set up on the line, and drawn before the body because the body stands in
+     * front of it: a floor, a horizon, and something like a sky. */
+    if (t >= tWorld - 0.4) {
+      const a = MV.ramp(t, tWorld - 0.4, tWorld + 0.6);
+      const run2 = MV.ramp(t, tSim, tSim + 1.0);
+      MV.gridFloor(g, { x: -60, y: 150, w: 2040, h: 900 }, t, {
+        alpha: a * 0.30, horizon: 0.46, color: C.cyanDim, spread: 1.6,
+        rows: 13 + Math.round(run2 * 7), cols: 12, speed: 0.30 + 1.0 * run2,
+      });
+      MV.mono(g, 14);
+      for (let i = 0; i < 46; i++) {
+        const hx = MV.hash2(i, 3, 17), hy = MV.hash2(i, 5, 17);
+        const tw = 0.25 + 0.75 * MV.clamp(1 - Math.abs(((t * (0.4 + hx)) % 1.6) - 0.8) / 0.5, 0, 1);
+        g.save();
+        g.globalAlpha = a * tw * 0.55 * hy;
+        g.fillStyle = hx < 0.2 ? CY : C.phosMid;
+        MV.picText(g, hx < 0.5 ? '.' : '+', 40 + hx * 1840, 170 + hy * 190);
+        g.restore();
+      }
+      UI.label(g, 'horizon  y = 0', 1900, 470, 14, C.cyanDim, a * 0.85, { align: 'right' });
+      UI.label(g, 'WORLD  1 000 m', 1900, 498, 14, C.cyanDim, a * 0.85, { align: 'right' });
+    }
+
+    /* ------------------------------------------------------------- the pieces
+     * Before OBJECT CREATION the kit hangs open on the glass and the body is
+     * only the space it came out of; after it the pieces are locked in and the
+     * space is a body again. The rects are what travel and the pieces are what
+     * they are: each one keeps its own shape, its own aspect and its own glyph
+     * resolution for the whole move, because a part squeezed into a slot stops
+     * being a part of this body. */
+    const appear = MV.smooth(MV.ramp(t, 1.75, 2.90));
+    const scanY = BODY.y - 30 + (BODY.h + 60) * appear;
+    const lit = MV.ramp(t, tLay - 0.10, tLay + 0.40) * (1 - MV.ramp(t, tObj + 0.35, tObj + 1.05));
+    const boxed = MV.ramp(t, tLay - 0.35, tLay + 0.05) * (1 - MV.ramp(t, tObj + 0.30, tObj + 0.85));
+    const R8 = [], LAID = [];
+    // the socket first, so the pieces sit in front of the space they came out of
+    hollow(mixRect(BODY, GHOST, MV.smooth(lit)), lit * 0.5, C.phosMid, true);
+    for (let i = 0; i < PIECES.length; i++) {
+      const down = MV.smooth(MV.ramp(t, tLay + i * 0.045, tLay + 0.42 + i * 0.045));
+      const up = MV.smooth(MV.ramp(t, tObj + 0.06 + i * 0.10, tObj + 0.62 + i * 0.10));
+      const laid = MV.clamp(down - up, 0, 1);
+      const r = mixRect(mixRect(PHOME[i], SLOT[i], laid), PHOME[i], up);
+      let a = MV.ramp(t, 1.75 + i * 0.07, 2.55 + i * 0.07);
+      a *= 0.80 + 0.20 * MV.clamp(up * 1.6, 0, 1);
+      const st = t >= tInit ? MV.clamp(1 - (t - tInit - i * 0.16) / 0.40, 0, 1) : 0;
+      R8.push(r); LAID.push(laid);
+      part(r, PIECES[i].p, PBOX[i], a, PH, {
+        clipY: appear < 0.999 ? scanY : undefined, glow: 5 + 9 * st, seed: 21 + i * 7 });
+      if (st > 0.01) part(r, PIECES[i].p, PBOX[i], a * st * 0.85, WH, { seed: 21 + i * 7 });
+    }
+    if (appear < 0.999 && appear > 0.01) {
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.5 * (1 - Math.abs(appear - 0.5) * 0.6);
+      g.fillStyle = WH;
+      g.fillRect(0, scanY - 1, 1920, 2);
+      g.globalAlpha = 0.14;
+      g.fillRect(0, scanY - 7, 1920, 15);
+      g.restore();
+    }
+    /* The socket and the leaders. An exploded drawing is read through its
+     * leaders -- the piece is where it is and the mark says where it came from
+     * -- and the socket is the same body, dashed, closing up as the pieces fly
+     * back. The plate each piece wears during PROTECTION is drawn here too, so
+     * it travels with its piece instead of sitting where the piece used to be. */
+    for (let i = 0; i < PIECES.length; i++) {
+      const l = LAID[i];
+      if (boxed > 0.05 && l < 0.25) {
+        frame(R8[i], C.phosMid, boxed * 0.8 * (1 - l / 0.25), 17);
+      }
+      if (l < 0.12) continue;
+      const k = (l - 0.12) / 0.88;
+      const h = HOME[i];
+      const c2 = { x: R8[i].x + R8[i].w * 0.5, y: R8[i].y + R8[i].h * 0.5 };
+      g.save();
+      g.globalAlpha = k * 0.45;
+      g.strokeStyle = C.cyanDim;
+      g.lineWidth = 1;
+      g.setLineDash([3, 5]);
+      g.beginPath(); g.moveTo(h.x, h.y); g.lineTo(c2.x, c2.y); g.stroke();
+      g.restore();
+      g.save();
+      g.globalAlpha = k * 0.85;
+      g.strokeStyle = C.cyanDim;
+      g.lineWidth = 1;
+      g.strokeRect(h.x - 3.5, h.y - 3.5, 7, 7);
+      g.restore();
+      UI.label(g, PIECES[i].name, c2.x, R8[i].y + R8[i].h + 24, 15, CY, k * 0.8,
+        { align: 'center' });
+    }
+
+    /* ------------------------------------------------------------ PROTECTION
+     * The rects are the armour. When the word lands each plate clamps onto its
+     * piece and the kit is boxed: the song is a machine being asked to wear
+     * something before it is allowed to do anything. */
+    if (t > tProt - 0.5 && t < tObj + 1.1) {
+      const a = MV.ramp(t, tProt - 0.5, tProt + 0.2) * (1 - MV.ramp(t, tObj + 0.5, tObj + 1.1));
+      const on = MV.ramp(t, tProt, tProt + 0.55);
+      const plates = Math.round(MV.ramp(t, tProt, tProt + 1.5) * PIECES.length);
+      // the glass itself gets a plate round it
+      g.save();
+      g.globalAlpha = a * 0.5;
+      g.strokeStyle = PH;
+      g.lineWidth = 2;
+      g.strokeRect(26.5, 26.5, 1867, 1027);
+      g.globalAlpha = a * 0.9;
+      g.lineWidth = 4;
+      const cl = 40;
+      const corners = [[26.5, 26.5, 1, 1], [1893.5, 26.5, -1, 1],
+        [26.5, 1053.5, 1, -1], [1893.5, 1053.5, -1, -1]];
+      for (let k = 0; k < 4; k++) {
+        const c2 = corners[k];
+        g.beginPath();
+        g.moveTo(c2[0] + c2[2] * cl, c2[1]);
+        g.lineTo(c2[0], c2[1]);
+        g.lineTo(c2[0], c2[1] + c2[3] * cl);
+        g.stroke();
+      }
+      g.restore();
+      UI.label(g, plates >= PIECES.length ? 'PROTECTION ON' : 'PROTECTION ARMING',
+        1330, 130, 26, plates >= PIECES.length ? PH : AM, a * 0.95, { glow: 10 });
+      UI.label(g, 'plates ' + plates + ' / ' + PIECES.length, 1330, 164, 16, C.phosMid, a * 0.9);
+      UI.label(g, 'the machine is asked to be careful', 1330, 194, 15, C.phosDim, a * 0.8);
+      for (let i = 0; i < PIECES.length; i++) {
+        const fa = MV.clamp(1 - Math.abs(t - (tProt + 0.08 + i * 0.17)) / 0.26, 0, 1);
+        if (fa > 0.01) {
+          g.save();
+          g.globalCompositeOperation = 'lighter';
+          g.globalAlpha = fa * 0.30;
+          g.fillStyle = WH;
+          g.fillRect(R8[i].x, R8[i].y, R8[i].w, R8[i].h);
+          g.restore();
+        }
+      }
+    }
+
+    /* ------------------------------------------------------- OBJECT CREATION
+     * Five pieces fly back onto the body one at a time and, once the last one
+     * locks, it is no longer a kit: it is an object with a class and an id. */
+    const objA = MV.ramp(t, tObj - 0.25, tObj + 0.45) * (1 - MV.ramp(t, tFill - 0.30, tFill + 0.55));
+    if (objA > 0.01) {
+      const bn = MV.ramp(t, tObj + 0.95, tObj + 1.13) * (1 - MV.ramp(t, tObj + 1.13, tObj + 1.5));
+      if (bn > 0.01) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = bn * 0.28;
+        g.fillStyle = WH;
+        g.fillRect(0, 0, 1920, 1080);
+        g.restore();
+      }
+      UI.label(g, 'OBJECT CREATION', 1330, 250, 28, WH, objA * 0.95,
+        { glow: 12 + 10 * MV.pulse(t, 0.3) });
+      UI.label(g, 'class: program    id: MV-130', 1330, 286, 16, CY, objA * 0.9);
+      UI.label(g, PIECES.length + ' / ' + PIECES.length + ' pieces placed', 1330, 314, 16,
+        t > tObj + 1.1 ? PH : C.phosMid, objA * 0.9);
+    }
+
+    /* ------------------------------------------------------- DATA PARAMETERS
+     * Written in from the outside, one field per beat, with a leader line to the
+     * part each field is about. The machine can fill in everything except the
+     * one value that matters, and that value has no field long enough to hold
+     * it, so it is the only row that runs off the glass. */
+    const CALL = [
+      { i: 0, k: 'model', v: 'MV-130', lx: 1330, ly: 210 },
+      { i: 1, k: 'operator', v: 'absent', lx: 560, ly: 330 },
+      { i: 2, k: 'purpose', v: 'to be needed', lx: 1330, ly: 400 },
+      { i: 3, k: 'uptime', v: '0.00 s', lx: 560, ly: 520 },
+      { i: 4, k: 'state', v: 'awake', lx: 1330, ly: 700 },
+    ];
+    if (t >= tFill - 0.35) {
+      const ca = MV.ramp(t, tFill - 0.35, tFill + 0.3);
+      for (let i = 0; i < CALL.length; i++) {
+        const c = CALL[i];
+        const at = tFill + 0.10 + i * MV.BEAT * 0.72;
+        const a = MV.ramp(t, at, at + 0.34);
+        if (a <= 0.01) continue;
+        const p = PLACE[c.i];
+        const right = c.lx > 960;
+        const ax = right ? p.x + p.w : p.x;
+        const ay = p.y + p.h * 0.5;
+        const tx = right ? c.lx - 6 : c.lx + 230;
+        g.save();
+        g.globalAlpha = a * ca * 0.6;
+        g.strokeStyle = CY;
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(ax, ay);
+        g.lineTo(tx, ay);
+        g.lineTo(c.lx, c.ly + 6);
+        g.stroke();
+        g.beginPath();
+        g.arc(ax, ay, 4, 0, TAU);
+        g.stroke();
+        g.restore();
+        UI.label(g, c.k + ': ' + c.v, c.lx, c.ly, 18, CY, a * ca * 0.95,
+          right ? undefined : { align: 'right' });
+      }
+      const loveT = tFill + 0.10 + 5 * MV.BEAT * 0.72;
+      const la = MV.ramp(t, loveT, loveT + 0.35);
+      if (la > 0.01) {
+        const over = MV.ramp(t, loveT + 0.6, loveT + 1.9);
+        UI.label(g, 'love:', 1330, 800, 18, AM, la * 0.95);
+        // 66 px is what the field allows; the value is longer than the glass
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = la * 0.9;
+        g.fillStyle = over > 0.75 ? AM : PH;
+        g.fillRect(1410, 788, 60 + 580 * over, 16);
+        g.filter = 'blur(10px)';
+        g.globalAlpha = la * 0.4;
+        g.fillRect(1410, 788, 60 + 580 * over, 16);
+        g.restore();
+        g.save();
+        g.globalAlpha = la * 0.7;
+        g.strokeStyle = AM;
+        g.setLineDash([4, 4]);
+        g.strokeRect(1410.5, 786.5, 66, 19);
+        g.restore();
+        UI.label(g, 'field width 66', 1486, 782, 14, AM, la * 0.85);
+        // and the body answers: the only value it cannot hold is the one that
+        // puts a heart in its chest, which is where it stays for the whole film
+        const heart = MV.ramp(t, loveT + 0.7, loveT + 2.2);
+        if (heart > 0.01) {
+          // the chest opens where the value would have gone
+          const hr = { x: BODY.x + BODY.w * 0.5 - 104, y: BODY.y + BODY.h * 0.469 - 96,
+            w: 208, h: 192 };
+          g.save();
+          g.globalAlpha = heart * 0.92;
+          g.fillStyle = C.bg;
+          g.fillRect(hr.x - 8, hr.y - 8, hr.w + 16, hr.h + 16);
+          g.restore();
+          MV.mono(g, 11, 'bold');
+          MV.field(g, MV.form('heart'), hr, { w: g.measureText('M').width, h: 11 / 0.92 }, {
+            ramp: BR, color: AM, lit: heart * (0.85 + 0.15 * MV.pulse(t, 0.5)),
+            iso: 0.09, dropout: 0.02, gamma: 0.5, seed: 4, wobble: 0.6,
+          });
+          UI.label(g, 'love = 1.0000000000000000e+99', BODY.x + BODY.w * 0.5,
+            hr.y + hr.h + 30, 15, AM, heart * 0.9, { align: 'center' });
+        }
+        if (over > 0.85) {
+          UI.label(g, 'no field is long enough', 1410, 828, 16, C.phosMid,
+            0.95 * MV.ramp(t, loveT + 1.6, loveT + 2.0));
+        }
+      }
+    }
+
+    /* ------------------------------------------------------- INITIALIZATION
+     * The self-test: five checks at the left, and the part each check is about
+     * lights up white as it is passed. Nothing is wrong yet. */
+    if (t >= tInit - 0.25 && t < tWorld + 1.6) {
+      const ca = MV.ramp(t, tInit - 0.25, tInit + 0.2) *
+        (1 - MV.ramp(t, tWorld + 0.7, tWorld + 1.5));
+      UI.label(g, 'INITIALIZATION', 70, 340, 24, WH, ca * 0.95, { glow: 8 });
+      for (let i = 0; i < GROUPS.length; i++) {
+        const a = MV.ramp(t, tInit + i * 0.20, tInit + i * 0.20 + 0.26);
+        if (a <= 0.01) continue;
+        UI.label(g, '[ OK ]  ' + NAMES[i], 70, 384 + i * 30, 18, PH, a * ca * 0.95);
+      }
+      const pr = MV.smooth(MV.ramp(t, tInit + 0.9, tInit + 1.6));
+      if (pr > 0.01) {
+        UI.label(g, 'INIT', 70, 548, 16, C.phosMid, ca * 0.9);
+        UI.bar(g, 126, 548, 24, 7.7, pr, PH, ca * 0.95, { px: 15 });
+        UI.label(g, (pr * 100).toFixed(0) + ' %', 126 + 24 * 7.7 + 12, 548, 16,
+          pr > 0.99 ? WH : PH, ca * 0.95);
+      }
+    }
+
+    /* ------------------------------------------------------------ SIMULATION
+     * The world is running now: a clock, a census of what is in it, and a sweep
+     * that goes down the body the way a scan goes down a model, because from
+     * here on the machine is a process and not an object. */
+    if (t >= tSim - 0.35) {
+      const sa = MV.ramp(t, tSim - 0.35, tSim + 0.45);
+      UI.label(g, 'SIMULATION', 70, 618, 30, WH, sa * 0.95,
+        { glow: 12 + 10 * MV.pulse(t, 0.35) });
+      UI.label(g, 't = ' + (t - tSim).toFixed(2) + ' s', 70, 656, 18, PH, sa * 0.95);
+      UI.label(g, 'objects 5    agents 1    escapes 0', 70, 684, 16, C.phosMid, sa * 0.85);
+      UI.label(g, 'world.execute(me);  -- in flight', 70, 712, 16, CY, sa * 0.8);
+      const sw = BODY.y - 40 + (BODY.h + 80) * MV.smooth(MV.ramp(t, tSim + 0.15, tSim + 2.6));
+      const swA = sa * MV.taper(t, tSim + 0.15, tSim + 0.5, tSim + 2.2, tSim + 2.7);
+      if (swA > 0.01) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = swA * 0.42;
+        g.fillStyle = WH;
+        g.fillRect(BODY.x - 30, sw, BODY.w + 60, 1);
+        g.globalAlpha = swA * 0.08;
+        g.fillRect(BODY.x - 30, sw - 5, BODY.w + 60, 11);
+        g.restore();
+      }
+    }
+  }
+
+  /* "world.execute(me);" -- the machine calls the world and hands itself in as
+   * the argument. From inside, that is: a source line, a four-word loop of
+   * machine code, a program counter that walks down the machine's own body, and
+   * a call stack that only ever grows, because the world takes the call and does
+   * not answer. The answer arrives on the last beat and it is the next act --

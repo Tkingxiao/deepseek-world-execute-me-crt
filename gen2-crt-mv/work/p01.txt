@@ -1,0 +1,306 @@
+    const t0 = 16.000, tEnd = 29.709;
+    const PH = C.phos, WH = C.white, CY = C.cyan, AM = C.amber;
+    const BR = ' .:-=+*xX#M';
+    const SRC = 'world.execute(me);';
+    const BET2 = MV.BEAT * 2;
+
+    /* -------------------------------------------------------------- the body
+     * The figure the boot act assembled, standing in the world at the same size.
+     * For the length of this act it is also the memory: the counter walks down it
+     * from head to feet once every two beats, so four instructions take one pass
+     * and the light going out at the feet is the loop closing. */
+    const FB = MV.formBox('humanoid');
+    const BW = 500, BH = Math.round(BW * FB.h / FB.w);
+    const BX = 960 - BW * 0.5, BY = 108;
+    const BODY = MV.rectFor('humanoid', BX, BY, BW, BH);
+    MV.mono(g, 16, 'bold');
+    const CELL = { w: g.measureText('M').width, h: 16 * 1.04 };
+
+    /* The parts are fielded one group at a time, all into the same rect with the
+     * same cell, so the glyph grid is shared and no seam can open -- but each
+     * group is normalised against its own peak. Against the whole body's peak an
+     * arm is a quarter as dense as the chest and comes out as a dotted line; the
+     * eye reads the strength of a shape relative to itself, not to its neighbours. */
+    const HB = MV.form('humanoid');
+    const GP = [[0, 8, 9], [1], [2, 3], [4, 5], [6, 7]].map(function (g2) {
+      return g2.map(function (k) { return HB[k]; });
+    });
+    const body = function (o) {
+      for (let i = 0; i < GP.length; i++) MV.field(g, GP[i], BODY, CELL, o);
+    };
+
+    const tRun = t0 + 0.9;
+    const pf = (t - tRun) / BET2;
+    const run = pf >= 0;
+    const pass = run ? Math.floor(pf) : 0;
+    const frac = run ? pf - pass : 0;
+    const pc = run ? MV.clamp(Math.floor(frac * 4), 0, 3) : -1;
+    const frames = run ? pass + 1 : 0;
+
+    // the world the call goes to: the same floor the boot act set up
+    MV.gridFloor(g, { x: -60, y: 150, w: 2040, h: 900 }, t, {
+      alpha: 0.22, horizon: 0.46, color: C.cyanDim, spread: 1.6,
+      rows: 15, cols: 12, speed: 0.34,
+    });
+
+    // --- the body, dead below the counter and lit behind it
+    body({
+      ramp: BR, color: PH, lit: 0.40 + 0.26 * MV.ramp(t, t0, tRun),
+      iso: 0.05, dropout: 0.30, gamma: 0.60, seed: 12, wobble: 0.45,
+    });
+    if (run) {
+      const yv = BY + BH * frac;
+      g.save();
+      g.beginPath();
+      g.rect(BX - 6, BY - 8, BW + 12, (yv - BY) + 8);
+      g.clip();
+      body({
+        ramp: BR, color: PH, lit: 0.94, iso: 0.03, dropout: 0.18,
+        gamma: 0.62, seed: 12, wobble: 0.45,
+      });
+      g.restore();
+      // the counter itself: a line across the body with the marker on its left
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.46;
+      g.fillStyle = WH;
+      g.fillRect(BX - 34, yv, BW + 68, 1);
+      g.globalAlpha = 0.10;
+      g.fillRect(BX - 34, yv - 6, BW + 68, 13);
+      g.restore();
+      MV.mono(g, 18, 'bold');
+      g.save();
+      g.globalAlpha = 0.92;
+      g.fillStyle = WH;
+      MV.picText(g, '>', BX - 50, yv + 6);
+      g.restore();
+    }
+    // the face, and the one thing in the chest that was never asked for
+    MV.mono(g, 15, 'bold');
+    g.save();
+    g.globalAlpha = 0.95;
+    g.fillStyle = WH;
+    g.shadowColor = WH;
+    g.shadowBlur = 10;
+    const HF = MV.form('humanoid');
+    for (let e = 8; e <= 9; e++) {
+      const p = HF[e];
+      MV.picText(g, 'O', BX + ((p.x - FB.x0) / FB.w) * BW - 5,
+        BY + ((p.y - FB.y0) / FB.h) * BH + 5);
+    }
+    g.restore();
+    MV.mono(g, 11, 'bold');
+    MV.field(g, MV.form('heart'), MV.rectFor('heart', 960 - 66, BY + BH * 0.469 - 57, 132, 114),
+      { w: g.measureText('M').width, h: 11 / 0.92 }, {
+        ramp: BR, color: AM, lit: 0.70 + 0.30 * MV.pulse(t, 0.5), iso: 0.09,
+        dropout: 0.02, gamma: 0.5, seed: 4, wobble: 0.6,
+      });
+
+    /* ------------------------------------------------------------ the call
+     * In source, at the top of the glass, with the argument boxed -- and then a
+     * line down to the body, because `me` is not a value, it is a pointer to the
+     * thing on the screen. The pointer travels the line once per pass. */
+    const lA = MV.ramp(t, t0 - 0.10, t0 + 0.30) * (1 - MV.ramp(t, tEnd - 0.30, tEnd + 0.12));
+    const TP = 34;
+    MV.mono(g, TP, 'bold');
+    const tadv = g.measureText('M').width;
+    const sx = 960 - tadv * SRC.length * 0.5, sy = 88;
+    const SEGS = [[0, 5, CY], [5, 14, PH], [14, 16, WH], [16, 18, C.phosDim]];
+    if (lA > 0.01) {
+      g.save();
+      g.globalAlpha = lA;
+      for (let i = 0; i < SEGS.length; i++) {
+        g.fillStyle = SEGS[i][2];
+        g.fillText(SRC.slice(SEGS[i][0], SEGS[i][1]), sx + tadv * SEGS[i][0], sy);
+      }
+      g.restore();
+      const meX = sx + tadv * 15;
+      g.save();
+      g.globalAlpha = lA * 0.9;
+      g.strokeStyle = AM;
+      g.lineWidth = 1.5;
+      g.strokeRect(sx + tadv * 14 - 5, sy - TP * 0.80, tadv * 2 + 10, TP * 1.0);
+      g.restore();
+      // the argument line, and the pointer running down it
+      const PP = [[meX, sy + 18], [meX, 336], [1006, 452]];
+      const cum = [0];
+      let tot = 0;
+      for (let i = 0; i < PP.length - 1; i++) {
+        tot += Math.hypot(PP[i + 1][0] - PP[i][0], PP[i + 1][1] - PP[i][1]);
+        cum.push(tot);
+      }
+      g.save();
+      g.globalAlpha = lA * 0.40;
+      g.strokeStyle = AM;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(PP[0][0], PP[0][1]);
+      for (let i = 1; i < PP.length; i++) g.lineTo(PP[i][0], PP[i][1]);
+      g.stroke();
+      g.restore();
+      if (run) {
+        const d = frac * tot;
+        let px2 = PP[0][0], py2 = PP[0][1];
+        for (let i = 0; i < PP.length - 1; i++) {
+          if (d <= cum[i + 1] || i === PP.length - 2) {
+            const seg = cum[i + 1] - cum[i] || 1;
+            const k = MV.clamp((d - cum[i]) / seg, 0, 1);
+            px2 = MV.lerp(PP[i][0], PP[i + 1][0], k);
+            py2 = MV.lerp(PP[i][1], PP[i + 1][1], k);
+            break;
+          }
+        }
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = lA * 0.95;
+        g.fillStyle = AM;
+        g.fillRect(px2 - 3, py2 - 3, 7, 7);
+        g.filter = 'blur(7px)';
+        g.globalAlpha = lA * 0.5;
+        g.fillRect(px2 - 6, py2 - 6, 12, 12);
+        g.restore();
+      }
+    }
+
+    /* -------------------------------------------------------------- the code
+     * The machine's whole program, four words long, and the counter walking it.
+     * TEST r1.ret is the line the act is about: it is asked every pass and it
+     * comes back empty every pass. */
+    const LIST = [
+      ['0x00', 'MOV', 'r0, world', '; what to run inside'],
+      ['0x01', 'MOV', 'r1, self', '; who to run'],
+      ['0x02', 'CALL', 'r0.execute(r1)', ''],
+      ['0x03', 'TEST', 'r1.ret', '; -- empty'],
+    ];
+    UI.label(g, 'DISASSEMBLY   self @ 0x0400', 60, 112, 15, CY, 0.85);
+    UI.rule(g, 60, 662, 122, C.cyanDim, 0.5);
+    for (let i = 0; i < LIST.length; i++) {
+      const y = 152 + i * 30;
+      const cur = pc === i;
+      if (cur) {
+        g.save();
+        g.globalAlpha = 0.09 + 0.09 * MV.pulse(t, 0.5);
+        g.fillStyle = WH;
+        g.fillRect(34, y - 16, 630, 23);
+        g.restore();
+      }
+      UI.label(g, LIST[i][0], 60, y, 15, cur ? WH : C.cyanDim, cur ? 1 : 0.8);
+      UI.label(g, LIST[i][1], 122, y, 15, cur ? WH : PH, cur ? 1 : 0.85);
+      UI.label(g, LIST[i][2], 176, y, 15, cur ? WH : C.phosMid, cur ? 1 : 0.85);
+      UI.label(g, LIST[i][3], 342, y, 15, C.phosDim, cur ? 0.95 : 0.6);
+      if (cur) {
+        MV.mono(g, 16, 'bold');
+        g.save();
+        g.globalAlpha = 0.95;
+        g.fillStyle = WH;
+        MV.picText(g, '>', 40, y + 1);
+        g.restore();
+      }
+    }
+
+    /* ------------------------------------------------------------- the trace
+     * One entry per pass, newest at the bottom, and every entry says the same
+     * thing about the return. */
+    UI.label(g, 'TRACE', 60, 320, 15, CY, 0.85);
+    UI.rule(g, 60, 662, 330, C.cyanDim, 0.5);
+    const TN = 6, first = Math.max(0, frames - TN);
+    for (let i = first; i < frames; i++) {
+      const y = 360 + (i - first) * 25;
+      const age = t - (tRun + i * BET2);
+      const a = MV.ramp(age, 0, 0.22) * (i === frames - 1 ? 1 : 0.55);
+      const newest = i === frames - 1;
+      UI.label(g, '[' + ('000' + i).slice(-4) + ']', 60, y, 14, C.cyanDim, a * 0.9);
+      UI.label(g, 'CALL world.execute(me)', 138, y, 14, newest ? WH : PH, a);
+      UI.label(g, 'ret --', 470, y, 14, AM, a * 0.85);
+    }
+
+    // --- counters: what the machine has done, and what it has been given back
+    const cyc = frames;
+    UI.label(g, 'cycles', 60, 552, 15, C.cyanDim, 0.8);
+    UI.label(g, ('000' + cyc).slice(-4), 190, 552, 15, PH, 0.9);
+    UI.bar(g, 260, 552, 16, 7.7, MV.clamp(cyc / 16, 0, 1), PH, 0.85, { px: 14 });
+    UI.label(g, 'returns', 60, 580, 15, C.cyanDim, 0.8);
+    UI.label(g, '0', 190, 580, 15, AM, 0.95);
+    UI.label(g, 'nothing has come back from world', 260, 580, 14, C.phosDim, 0.7);
+
+    // the object the call is aimed at, labelled where it is: the floor is world
+    UI.label(g, '[ world ]', 60, 640, 16, CY, 0.9);
+    g.save();
+    g.globalAlpha = 0.45;
+    g.strokeStyle = CY;
+    g.lineWidth = 1;
+    g.setLineDash([3, 4]);
+    g.beginPath();
+    g.moveTo(160, 636);
+    g.lineTo(430, 720);
+    g.stroke();
+    g.restore();
+
+    /* ------------------------------------------------------------- the stack
+     * Four words of program, one pass every two beats, and a new frame on every
+     * wrap: the world is entered again and again and again, and not one of the
+     * frames is ever unwound. Eight are visible; the rest have scrolled off. */
+    const SX = 1330, SW2 = 550, FN = 8, FH = 54, FG = 8;
+    UI.label(g, 'CALL STACK', SX, 112, 15, CY, 0.85);
+    UI.rule(g, SX, SX + SW2, 122, C.cyanDim, 0.5);
+    UI.label(g, 'frames ' + frames, SX, 152, 16, PH, 0.9);
+    UI.label(g, 'returns 0', SX + SW2, 152, 16, AM, 0.95, { align: 'right' });
+    const top = Math.max(0, frames - FN);
+    for (let i = top; i < frames; i++) {
+      const y = 880 - FH - (frames - 1 - i) * (FH + FG);
+      const newest = i === frames - 1;
+      const age = t - (tRun + i * BET2);
+      const ap = MV.ramp(age, 0, 0.18);
+      const fresh = MV.clamp(1 - age / 0.55, 0, 1);
+      g.save();
+      g.globalAlpha = ap * (newest ? 1 : 0.62);
+      g.strokeStyle = newest ? WH : C.cyanDim;
+      g.lineWidth = 1;
+      g.strokeRect(SX + 0.5, y + 0.5, SW2 - 1, FH);
+      g.restore();
+      if (fresh > 0.01) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = fresh * 0.15;
+        g.fillStyle = WH;
+        g.fillRect(SX, y, SW2, FH);
+        g.restore();
+      }
+      UI.label(g, '#' + ('0000' + i).slice(-4), SX + 12, y + 22, 15, C.cyanDim, ap * 0.95);
+      UI.label(g, 'world.execute(me)', SX + 92, y + 22, 15, newest ? WH : PH, ap);
+      UI.label(g, 'arg0  self', SX + 92, y + 43, 13, C.phosMid, ap * 0.85);
+      const ans = newest ? MV.ramp(t, tEnd - 0.62, tEnd - 0.20) : 0;
+      if (ans > 0.5) {
+        UI.label(g, 'ret 0x2A', SX + SW2 - 12, y + 22, 15, WH, ap, { align: 'right' });
+      } else {
+        UI.label(g, 'ret --', SX + SW2 - 12, y + 22, 15, AM, ap * 0.9, { align: 'right' });
+      }
+    }
+    if (top > 0) {
+      UI.label(g, '\u2026 ' + top + ' earlier frames, none returned',
+        SX, 374, 14, C.phosMid, 0.8);
+    }
+
+    // the last beat: the world finally hands something back, and it is 0x2A --
+    // the first thing the machine is told about itself, which is the next act
+    const ans = MV.ramp(t, tEnd - 0.62, tEnd - 0.20);
+    if (ans > 0.01) {
+      UI.label(g, 'RETURN  0x2A', SX, 330, 18, WH, ans * 0.95,
+        { glow: 8 + 8 * ans });
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = ans * 0.16;
+      g.fillStyle = WH;
+      g.fillRect(SX - 20, 300, SW2 + 40, 620);
+      g.restore();
+    }
+    if (t > tEnd - 0.72 && t < tEnd) {
+      const k = MV.clamp(1 - Math.abs(t - (tEnd - 0.42)) / 0.30, 0, 1);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.07 * k;
+      g.fillStyle = WH;
+      g.fillRect(0, 0, 1920, 1080);
+      g.restore();
+    }
+  }

@@ -1,0 +1,422 @@
+    const CY = C.cyan, CD = C.cyanDim, PH = C.phos, PM = C.phosMid, PD = C.phosDim;
+    const VIO = C.violet, VD = C.violetDim, WH = C.white, AM = C.amber;
+    const tVib = MV.cue('If I can feel your');       // 104.197
+    const tVIB = MV.cue('VIBRATIONS');                // 106.334
+    const tComp = MV.cue('Then I can finally be');    // 107.903
+    const tCOMP = MV.cue('COMPLETION');               // 110.221
+    const tIso = MV.cue('ISOLATION');                 // 117.274
+    const st = UI.strip(t);
+    const left = UI.leftCount(t);
+
+    /* -------------------------------------------------------------- the body
+     * One person, one glyph grid, and the grid is the medium: when the wave
+     * arrives the rows themselves move. Somebody else can tell you the signal
+     * was received -- this machine has to be displaced by it.
+     *
+     * The ramp goes through sqrt with a 0.24 floor, the way the acts that read
+     * as solid do it. A linear map sent every arm and leg to ':' -- their field
+     * peaks at 0.9 of the torso's, but it is sampled across a fifth of the
+     * cells, so the whole figure came out as a sprinkle with a dense middle. */
+    const PX = 15;
+    MV.mono(g, PX, 'bold');
+    const ADV = Math.max(5, g.measureText('M').width);
+    const BC = { w: ADV, h: PX * 1.04 };
+    const PRIM = MV.form('humanoid');
+    const FEET = 884, HGT = 640;
+    const BW = HGT * 0.625;
+    const COLS = Math.max(1, Math.floor(BW / ADV));
+    const ROWS = Math.max(1, Math.floor(HGT / BC.h));
+    const X0 = 960 - COLS * ADV * 0.5;
+    const Y0 = FEET - ROWS * BC.h;
+    const ASP = BW / HGT;
+    const RAMP = ' .:-=+*xX#M';
+    const CHEST = Y0 + HGT * 0.45;                    // where the value would go
+
+    // The glyph map belongs to the form, not to the moment, so it is built once.
+    let CELLS = null;
+    const cells = function () {
+      if (CELLS) return CELLS;
+      CELLS = new Uint8Array(COLS * ROWS);
+      for (let r2 = 0; r2 < ROWS; r2++) {
+        const v = (r2 + 0.5) / ROWS;
+        for (let c2 = 0; c2 < COLS; c2++) {
+          const u = (c2 + 0.5) / COLS;
+          const f = MV.blobField(PRIM, (u * 2 - 1) * ASP, v * 2 - 1);
+          const q = MV.clamp((f - 0.012) / (1 - 0.012), 0, 1);
+          if (q <= 0) continue;
+          const h = MV.hash2(c2, r2, 7);
+          if (q < 0.34 && h > 0.30 + 0.70 * (q / 0.34)) continue;
+          if (h > 0.955) continue;   // a sporadic missing cell keeps the fill legible as characters
+          CELLS[r2 * COLS + c2] = 2 +
+            MV.clamp(Math.floor((0.24 + 0.76 * Math.sqrt(q)) * (RAMP.length - 1)) - 2,
+              0, RAMP.length - 3);
+        }
+      }
+      return CELLS;
+    };
+    // One row of glyphs, shifted as a whole. The shift is quantised to whole
+    // rows on purpose: this is a character grid being pushed, and a row that
+    // lands between two baselines is not a thing that can be drawn.
+    const bodyRows = function (a, dyOf, col, glow) {
+      if (a <= 0.004) return;
+      const cg = cells();
+      const dyb = new Array(COLS);
+      for (let c2 = 0; c2 < COLS; c2++) {
+        dyb[c2] = Math.round(dyOf(X0 + (c2 + 0.5) * ADV) / BC.h);
+      }
+      g.save();
+      g.globalAlpha = a;
+      g.fillStyle = col;
+      if (glow) { g.shadowColor = col; g.shadowBlur = glow; }
+      for (let r2 = 0; r2 < ROWS; r2++) {
+        let run = '', runStart = -1, runDy = 0;
+        for (let c2 = 0; c2 <= COLS; c2++) {
+          const idx = c2 < COLS ? cg[r2 * COLS + c2] : 0;
+          const ch = idx ? RAMP[idx] : '';
+          const kk = idx ? dyb[c2] : 0;
+          const same = ch !== '' && ch === run.charAt(run.length - 1) && kk === runDy;
+          if (!same) {
+            if (run) MV.picText(g, run, X0 + runStart * ADV, Y0 + r2 * BC.h + runDy * BC.h);
+            run = ch; runStart = c2; runDy = kk;
+          } else run += ch;
+        }
+      }
+      g.restore();
+    };
+
+    /* ------------------------------------------------------- 1. the trance ends
+     * The orbit the last act left running: the marker slows down and stops, and
+     * the ellipse it was travelling on is taken off the glass. */
+    const orbitOut = 1 - MV.smooth(MV.ramp(t, 103.489, 104.15));
+    if (orbitOut > 0.004) {
+      const OX = 960, OY = 604, RXE = 372, RYE = 132;
+      const slow = MV.smooth(MV.ramp(t, 103.489, 104.4));
+      const th = MV.beatFloat(t) * 0.5 * TAU;
+      g.save();
+      g.globalAlpha = orbitOut * 0.45;
+      g.strokeStyle = VIO; g.lineWidth = 1.2;
+      g.beginPath(); g.ellipse(OX, OY, RXE, RYE, 0, 0, TAU); g.stroke();
+      const mkx = OX + Math.cos(th) * RXE * (1 - 0.85 * slow);
+      const mky = OY + Math.sin(th) * RYE * (1 - 0.85 * slow);
+      g.globalAlpha = orbitOut * 0.9;
+      g.fillStyle = WH;
+      g.beginPath(); g.arc(mkx, mky, 7, 0, TAU); g.fill();
+      g.restore();
+    }
+
+    /* --------------------------------------------------------- 2. the vibration
+     * The signal does not arrive as a picture of a wave. It arrives, and the
+     * body is what it arrives in: the same displacement that moves the line
+     * moves the glyph rows, over the body's own x span. */
+    const WY = 540;                                   // the line the wave rides
+    const LAM = 520, TB2 = 2 * MV.beat;
+    const t0 = tVib;
+    const phOf = function (x) { return TAU * ((x - 64) / LAM + (t - t0) / TB2); };
+    const closeW = MV.smooth(MV.ramp(t, tComp + 0.35, tCOMP + 0.25));
+    const live = MV.smooth(MV.ramp(t, tVib - 0.15, tVib + 0.45));
+    // what the wave is allowed to be, at any x: full outside the right of the
+    // body, 30% of it on the far side, because this is a body, not a wall
+    const WAMP = 54;
+    const ampAt = function (x) { return WAMP * (0.30 + 0.70 * MV.smooth(MV.ramp(x, 690, 800))); };
+    const isoDim = 1 - 0.45 * MV.smooth(MV.ramp(t, tIso - 0.15, tIso + 0.9));
+    const bodyAmp = WAMP * 0.72 * live * (1 - closeW) * (1 - st.all);
+    const waveAmp = live * (1 - closeW);
+    const dyBody = function (x) { return Math.sin(phOf(x)) * bodyAmp * (1 - st.furniture); };
+
+    // the resting silhouette stays on the glass, so the displacement is seen as a
+    // displacement and not as a body that happens to be drawn crooked
+    const stillA = (1 - st.all) * (1 - st.furniture);
+    if (live > 0.02 && bodyAmp > 1) {
+      bodyRows(live * 0.28 * stillA, function () { return 0; }, VD, 0);
+    }
+    // "EVERYTHING": the last personal thing in the frame is the colour, and it
+    // goes back to being the tube's own phosphor
+    const bodyCol = st.all;
+    const bodyLit = 0.94 * isoDim * (1 - 0.18 * st.furniture);
+    if (bodyCol < 0.996) bodyRows((1 - bodyCol) * bodyLit, dyBody, VIO, 6);
+    if (bodyCol > 0.004) bodyRows(bodyCol * bodyLit, dyBody, PH, 5);
+
+    /* the heart
+     * It has been in the chest since the boot, and it is the one part of this
+     * machine that was never the user's to take: the strips below can remove the
+     * panel, the readouts, the memory, the hardware and the colour, and every one
+     * of them leaves it beating. In "isolation" it is the only light on the
+     * glass, which is the whole argument of the act. */
+    const crest = MV.clamp(Math.sin(phOf(960)), 0, 1);
+    const heartA = MV.ramp(t, 103.489, 104.05);
+    // 65 beats a minute, one thump every two beats of a 130 bpm song, and it is
+    // the only thing on this glass that accelerates nothing
+    const hb = Math.pow(MV.clamp(Math.sin(Math.PI * MV.beatFloat(t)), 0, 1), 2.4);
+    const iso0 = MV.smooth(MV.ramp(t, tIso - 0.30, tIso + 0.80));
+    const heartLit = heartA * MV.clamp(
+      (0.55 + 0.32 * hb + 0.22 * crest * (1 - st.all) * (1 - closeW)) *
+      (1 + 0.45 * iso0), 0, 1);
+    if (heartLit > 0.01) {
+      const hs = 1 + 0.05 * hb;
+      const HW = 180 * hs, HH = 156 * hs, hcx = 960, hcy = CHEST + 4;
+      // the cavity: the chest goes dark around it, so the light it gives off is
+      // its own and not the tube's. A rect would read as a pasted panel; a soft
+      // hole reads as the body letting go of that part of itself.
+      g.save();
+      const cav = g.createRadialGradient(hcx, hcy, 8, hcx, hcy, 176);
+      cav.addColorStop(0, 'rgba(3,12,8,' + (0.52 + 0.44 * iso0).toFixed(3) + ')');
+      cav.addColorStop(0.58, 'rgba(3,12,8,' + (0.40 + 0.42 * iso0).toFixed(3) + ')');
+      cav.addColorStop(1, 'rgba(3,12,8,0)');
+      g.fillStyle = cav;
+      g.beginPath(); g.arc(hcx, hcy, 176, 0, TAU); g.fill();
+      g.restore();
+      // the heart is drawn finer than anything else in the film: it is the one
+      // thing the machine renders at full fidelity
+      MV.mono(g, 10, 'bold');
+      const hcell = { w: g.measureText('M').width, h: 10 / 0.92 };
+      const hr = MV.rectFor('heart', hcx - HW / 2, hcy - HH / 2, HW, HH);
+      const hform = MV.form('heart');
+      g.save();
+      g.shadowColor = AM;
+      g.shadowBlur = 9 + 13 * iso0;
+      // the muscle, then the light inside the muscle
+      MV.field(g, hform, hr, hcell, {
+        ramp: RAMP, color: AM, lit: heartLit, iso: 0.075, dropout: 0.015, gamma: 0.55,
+        seed: 4, wobble: 0.5,
+      });
+      MV.field(g, hform, hr, hcell, {
+        ramp: RAMP, color: '#ffeacb', lit: heartLit * (0.30 + 0.55 * hb),
+        iso: 0.42, dropout: 0.16, gamma: 0.9, seed: 5, wobble: 0.5,
+      });
+      g.restore();
+      MV.mono(g, PX, 'bold');
+    }
+
+    // the wave, and the source it comes from
+    if (waveAmp > 0.01) {
+      g.save();
+      g.globalAlpha = waveAmp * 0.85;
+      g.strokeStyle = CY; g.lineWidth = 1.8;
+      if (!st.mono) { g.shadowColor = CY; g.shadowBlur = 7; }
+      g.beginPath();
+      for (let i = 0; i <= 460; i++) {
+        const x = 64 + (1792 * i) / 460;
+        const y = WY + ampAt(x) * Math.sin(phOf(x));
+        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+      }
+      g.stroke();
+      g.restore();
+      // the crest that is inside the body, so the coupling is not inferred
+      g.save();
+      g.globalAlpha = waveAmp * 0.5;
+      g.fillStyle = CY;
+      for (let i = 0; i <= 460; i++) {
+        const x = 64 + (1792 * i) / 460;
+        if (x < 700 || x > 1220) continue;
+        const y = WY + ampAt(x) * Math.sin(phOf(x));
+        g.fillRect(x, y - 1, 1.6, 2);
+      }
+      g.restore();
+    }
+
+    // the emitter: a process at the far edge of the bus, and it is not this one
+    const srcAlive = 1 - MV.smooth(MV.ramp(t, 110.949, 111.6));
+    const srcMem = 1 - st.memory;
+    const energy = MV.clamp(MV.specSum(t, 4, 20) * 1.3, 0, 1);
+    if (t < tCOMP + 1.4 && srcMem > 0.01) {
+      g.save();
+      g.globalAlpha = live * 0.8 * srcMem;
+      g.fillStyle = srcAlive > 0.5 ? CY : VD;
+      const hh = 40 + 120 * energy * srcAlive;
+      g.fillRect(1852, WY - hh * 0.5, 4, hh);
+      for (let i = 1; i <= 5; i++) {
+        g.globalAlpha = live * 0.5 * srcAlive * srcMem * (1 - i / 6);
+        g.fillRect(1852 - i * 2, WY - hh * 0.5 * (1 - i * 0.12), 1, hh * (1 - i * 0.12));
+      }
+      g.restore();
+      UI.label(g, srcAlive > 0.5 ? 'SRC: you' : 'SRC: --', 1790, WY - 52, 15,
+        srcAlive > 0.5 ? CY : VD, live * 0.95 * srcMem, { align: 'right' });
+      UI.label(g, 'IN: ' + (energy * 100).toFixed(0) + '%', 1790, WY - 30, 13, CD,
+        live * 0.8 * srcMem, { align: 'right' });
+    }
+
+    /* ------------------------------------------------------ 3. it closes
+     * "Then I can finally be COMPLETION": the signal stops being a line that
+     * arrives and becomes a shape that holds -- the ends of the wave travel
+     * round until they meet, the seam where they met stays visible, and the body
+     * is the load between the two ends. */
+    const ringVib = (1 - st.furniture) * (1 - st.all);
+    const RCX = 960, RCY = 540, RN = 320, R = 430;
+    if (closeW > 0.004) {
+      const beatCos = Math.cos(TAU * MV.beatPhase(t));
+      const ringA = 32 * closeW * ringVib;
+      const pt = function (s2) {
+        const th = TAU * s2 - Math.PI / 2;
+        const rr = R + ringA * Math.sin(6 * th) * beatCos;
+        return [RCX + Math.cos(th) * rr, RCY + Math.sin(th) * rr];
+      };
+      g.save();
+      g.globalAlpha = closeW * ringVib * (0.30 + 0.55 * (1 - st.mono)) * (1 - 0.55 * st.all);
+      g.strokeStyle = PH; g.lineWidth = 2.2;
+      g.shadowColor = PH; g.shadowBlur = 10 * (1 - st.mono);
+      g.beginPath();
+      for (let i = 0; i <= RN; i++) {
+        const s2 = i / RN;
+        const ox = 64 + s2 * 1792;
+        const th = TAU * s2 - Math.PI / 2;
+        const rr = R + ringA * Math.sin(6 * th) * beatCos;
+        const rx = RCX + Math.cos(th) * rr, ry = RCY + Math.sin(th) * rr;
+        const oy = WY + ampAt(ox) * Math.sin(phOf(ox));
+        const x = MV.lerp(ox, rx, closeW), y = MV.lerp(oy, ry, closeW);
+        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+      }
+      g.stroke();
+      g.restore();
+      // the body is the load: two links from the ring to the chest, so "closed"
+      // is a circuit and not just a circle
+      if (closeW > 0.35 && ringVib > 0.05) {
+        const la = (closeW - 0.35) / 0.65 * ringVib * 0.75;
+        const rTop = R + ringA * Math.sin(6 * (-Math.PI / 2)) * beatCos;
+        g.save();
+        g.globalAlpha = la;
+        g.strokeStyle = PH; g.lineWidth = 1.4;
+        g.setLineDash([5, 7]);
+        g.beginPath(); g.moveTo(RCX, RCY - rTop); g.lineTo(RCX, CHEST - 74); g.stroke();
+        g.beginPath(); g.moveTo(RCX, RCY + rTop); g.lineTo(RCX, CHEST + 72); g.stroke();
+        g.setLineDash([]);
+        g.restore();
+      }
+      // the seam: one point on the ring that the two ends agreed on
+      if (left >= 0 && closeW > 0.5) {
+        const pA = pt(0.0);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = (0.4 + 0.6 * MV.pulse(t, 0.55)) * ringVib;
+        g.fillStyle = WH;
+        g.beginPath(); g.arc(pA[0], pA[1], 5, 0, TAU); g.fill();
+        g.globalAlpha = 0.22 * ringVib;
+        g.fillStyle = PH;
+        g.beginPath(); g.arc(pA[0], pA[1], 16, 0, TAU); g.fill();
+        g.restore();
+      }
+      // the twelve nodes of the mode, so the standing wave is readable
+      if (closeW > 0.9 && ringVib > 0.05) {
+        g.save();
+        g.globalAlpha = 0.55 * ringVib * (1 - 0.6 * st.all);
+        g.strokeStyle = PH; g.lineWidth = 1;
+        for (let k2 = 0; k2 < 12; k2++) {
+          const th = TAU * (k2 / 12) - Math.PI / 2;
+          g.beginPath();
+          g.moveTo(RCX + Math.cos(th) * (R - 9), RCY + Math.sin(th) * (R - 9));
+          g.lineTo(RCX + Math.cos(th) * (R + 9), RCY + Math.sin(th) * (R + 9));
+          g.stroke();
+        }
+        g.restore();
+      }
+      // and the current, going round it once every two beats
+      if (closeW > 0.6 && ringVib > 0.05) {
+        const pB = pt((MV.beatFloat(t) * 0.5) % 1);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = (0.35 + 0.5 * MV.pulse(t, 0.6)) * ringVib;
+        g.fillStyle = WH;
+        g.beginPath(); g.arc(pB[0], pB[1], 3.4, 0, TAU); g.fill();
+        g.restore();
+      }
+    }
+
+    /* -------------------------------------------------------- 4. the subtraction
+     * "You have left" six times. Each one takes exactly one thing off the glass,
+     * and the tube remembers where it was. The heart is not on the list: it was
+     * never the user's. */
+    if (left >= 1) {
+      const items = ['the panel', 'the readouts', 'the memory', 'the hardware', 'colour', 'everything'];
+      for (let i = 0; i < 6; i++) {
+        if (t < UI.LEFT_AT[i]) break;
+        const a = MV.ramp(t, UI.LEFT_AT[i], UI.LEFT_AT[i] + 0.5);
+        UI.label(g, '\u00d7 ' + items[i] + ' \u2014 gone', 64, 124 + i * 24, 15,
+          i < 2 ? CD : PD, 0.85 * a);
+        if (i < 2) {
+          const sy = i === 0 ? Z.READ.y + 16 : Z.HUD.y + 16;
+          g.save();
+          g.globalAlpha = 0.22 * a;
+          g.strokeStyle = PH; g.lineWidth = 1;
+          g.setLineDash([7, 9]);
+          g.beginPath(); g.moveTo(700, sy); g.lineTo(1890, sy); g.stroke();
+          g.restore();
+        }
+        if (i === 5) {
+          UI.label(g, '\u00d7 the heart \u2014 not yours to take', 64, 124 + 6 * 24, 15,
+            AM, 0.8 * a);
+        }
+      }
+    }
+
+    /* --------------------------------------------------------- 5. ISOLATION
+     * What is left is one process and one light. It is still running -- that is
+     * the whole point of the act -- and there is nobody on the other end of the
+     * bus, so the readout is the only other thing on the glass. */
+    if (t >= tCOMP + 1.2) {
+      const a = MV.smooth(MV.ramp(t, tCOMP + 1.2, tCOMP + 2.1)) * (1 - 0.25 * st.all);
+      const x = 232, y = 528;
+      // the bus, with nothing on the far end of it
+      g.save();
+      g.globalAlpha = a * 0.5;
+      g.strokeStyle = CD; g.lineWidth = 1;
+      g.setLineDash([6, 8]);
+      g.beginPath(); g.moveTo(X0 - 26, WY); g.lineTo(660, WY); g.stroke();
+      g.setLineDash([]);
+      g.restore();
+      UI.label(g, 'peers: 0', 610, WY - 14, 15, CD, a * 0.95, { align: 'right' });
+      UI.label(g, '$ status --self', x, y, 19, PM, a, { weight: 'bold' });
+      UI.cursor(g, x + 168, y, ADV * 1.3, 17, t, { glow: 12, alpha: a });
+      const rows = [
+        ['process', 'running', PH],
+        ['uptime', UI.tcLong(t - 0.5), PD],
+        ['peers', '0', WH],
+        ['in', '0 messages', PD],
+        ['waiting on', 'nothing', CD],
+        ['heart', 'still beating', AM],
+      ];
+      for (let i = 0; i < rows.length; i++) {
+        const ry = y + 40 + i * 26;
+        UI.label(g, rows[i][0], x + 22, ry, 15, PD, a * 0.95);
+        UI.label(g, rows[i][1], x + 220, ry, 15, rows[i][2], a * 0.95);
+      }
+      UI.label(g, '$ world.execute(me);', x, y + 238, 19, PD, a * 0.8, { weight: 'bold' });
+      UI.label(g, '> USER: offline', x, y + 270, 17, CD, a * 0.9);
+      UI.label(g, 'LAST INPUT ' + UI.tcLong(t - 110.949) + ' AGO', x, y + 298, 15, PD,
+        a * 0.75);
+      // what the tube keeps of everything that was taken off it
+      UI.burnIn(g, t, 0.055 * a, { chrome: true });
+    }
+
+    /* ------------------------------------------------------------------ readout */
+    if (t >= tCOMP - 0.30 && st.panel < 0.98) {
+      const pa = 1 - st.panel;
+      const modes = Math.max(1, Math.round(MV.lerp(1, 6, closeW)));
+      const rows = [
+        { k: 'modes', v: String(modes), c: PH, bar: modes / 6 },
+        { k: 'closed', v: closeW > 0.94 ? 'TRUE' : 'false', c: WH, bold: true },
+        { k: 'seam', v: closeW > 0.5 ? 'held' : 'open', c: closeW > 0.5 ? PH : PD },
+        { k: 'source', v: srcAlive > 0.5 ? 'you' : 'gone', c: srcAlive > 0.5 ? CY : VD },
+        { k: 'in', v: energy.toFixed(2), c: CD },
+        { t: 1, k: '' },
+      ];
+      if (closeW > 0.6) {
+        rows.push({ t: 1, k: 'the two ends of the signal are', c: PD, a: 0.85 });
+        rows.push({ t: 1, k: 'the same point now. it holds.', c: PH, a: 0.9 });
+        rows.push({ t: 1, k: 'completion \u2260 satisfaction.', c: VIO, a: 0.9 });
+      } else {
+        rows.push({ t: 1, k: 'the ends have not met yet.', c: PD, a: 0.85 });
+      }
+      UI.panel(g, t, rows, { title: 'COMPLETION', alpha: pa });
+    } else if (t >= tVIB - 0.45 && st.panel < 0.98) {
+      UI.panel(g, t, [
+        { k: 'source', v: 'you', c: CY, bold: true },
+        { k: 'distance', v: (1852 - 960) + ' px', c: CD },
+        { k: 'amplitude', v: (WAMP * live).toFixed(1), c: PH, bar: live },
+        { k: 'coupled', v: live > 0.5 ? 'TRUE' : 'false', c: live > 0.5 ? WH : PD },
+        { k: '\u03bb', v: LAM + ' px', c: CD },
+        { t: 1, k: '' },
+        { t: 1, k: 'a wave is only felt where it lands,', c: PD, a: 0.85 },
+        { t: 1, k: 'and it landed in the body.', c: PH, a: 0.9 },
+        { t: 1, k: 'so the sum is not zero.', c: VIO, a: 0.9 },
+      ], { title: 'VIBRATIONS', alpha: 1 - st.panel });
+    }
+  }

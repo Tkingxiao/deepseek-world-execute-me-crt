@@ -1,0 +1,723 @@
+    const tPts = MV.cue("If I'm a set of points");         // 29.709
+    const tGive1 = MV.cue('Then I will give you my', 29);  // 31.116
+    const tDim = MV.cue('DIMENSION');                      // 32.682
+    const tCir = MV.cue("If I'm a circle");                // 33.412
+    const tGive2 = MV.cue('Then I will give you my', 33);  // 34.646
+    const tCirc = MV.cue('CIRCUMFERENCE');                 // 36.287
+    const tSin = MV.cue("If I'm a sine wave");             // 37.067
+    const tSit = MV.cue('Then you can sit on all my');     // 38.596
+    const tTan = MV.cue('TANGENTS');                       // 40.049
+    const tInf = MV.cue('If I approach infinity');         // 40.706
+    const tBe = MV.cue('Then you can be my');              // 42.346
+    const tLim = MV.cue('LIMITATIONS');                    // 43.507
+    const PH = C.phos, WH = C.white, CY = C.cyan;
+
+    /* Four propositions, four lines of the lyric, each owning the whole tube.
+     * Nothing is boxed in: each figure is as large as the glass allows, and the
+     * machine's readouts sit in the same left column it has used since boot.
+     *
+     * One trap lives in the helpers below. UI.label only touches alignment when
+     * it is asked to, so a right-aligned label leaves textAlign behind for the
+     * next measurement; every value here is measured and then drawn left-aligned
+     * at (edge - width), which also keeps every act word clear of the caption
+     * band and the HUD (tools/check-gates.cjs measures both). */
+    function kv(g2, k, v, y, a, vcol, px) {
+      px = px || 18;
+      MV.mono(g2, px);
+      UI.text(g2, k, 64, y, C.cyanDim, a * 0.95);
+      MV.mono(g2, px, 'bold');
+      UI.text(g2, v, 448 - g2.measureText(v).width, y, vcol || CY, a);
+    }
+    function head(g2, s, sub, a) {
+      MV.mono(g2, 26, 'bold');
+      UI.text(g2, s, 64, 100, PH, a * 0.95);
+      UI.rule(g2, 64, 448, 114, C.phosDim, a * 0.7);
+      if (sub) { MV.mono(g2, 14); UI.text(g2, sub, 64, 138, C.phosMid, a * 0.72); }
+    }
+    function note(g2, s, y, a) {
+      MV.mono(g2, 15);
+      UI.text(g2, s, 64, y, C.phosMid, a * 0.7);
+    }
+    function bar(g2, q, y, a) {
+      g2.save();
+      g2.globalAlpha = a * 0.7;
+      g2.strokeStyle = C.cyanDim; g2.lineWidth = 1;
+      g2.strokeRect(64.5, y - 9.5, 383, 9);
+      g2.globalAlpha = a * 0.85;
+      g2.fillStyle = CY;
+      g2.fillRect(65, y - 9, 382 * MV.clamp(q, 0, 1), 8);
+      g2.restore();
+    }
+
+    /* ======================================================== 1. points
+     * "If I'm a set of points": a point is only a name with numbers in it, and
+     * how many numbers that name needs is what the word dimension means. The
+     * sixty-four points are the ones the body dissolved into at the end of the
+     * call, and they gain one coordinate each time the lyric promises one --
+     * and sixty-four is both 8x8 and 4x4x4, so the same points are a wire, then
+     * a square of points, then a cube of points.
+     *
+     * The set is always a lattice, never a scatter. Hashed positions turned on
+     * the beat read as jitter: with nothing regular to hold on to, the eye sees
+     * the points moving instead of the figure turning. On a lattice the turn is
+     * the only thing that moves, and the figure is unmistakable. */
+    const SA = MV.taper(t, 29.62, 29.78, tCir - 0.32, tCir + 0.12);
+    if (SA > 0.004) {
+      const N = 64;
+      const d2 = MV.smooth(MV.ramp(t, tGive1 + 0.05, tGive1 + 0.95));
+      const d3 = MV.smooth(MV.ramp(t, tDim - 0.38, tDim + 0.52));
+      const QX = 1180, QY = 476, R = 260;
+      const TILT = 0.42;                      // the camera looks down a little
+      const DIG = '0123456789abcdefghijklmnopqrstuvwxyz';
+      const pick = ((MV.beatIndex(t) % N) + N) % N;
+      // one rotation per dimension added: the square turns in its own plane,
+      // and once there is a cube the cube turns about the vertical. They hand
+      // over -- both at once is a tumble, which is the jitter again. Each angle
+      // is measured from the moment its own dimension arrives, so the turn
+      // starts at zero; scaling the absolute beat instead banks ten turns
+      // during the morph and spins the wire before there is anything to turn.
+      const bf = MV.beatFloat(t);
+      const spinP = 0.90 * (bf - MV.beatFloat(tGive1 + 0.05)) * d2 * (1 - d3);
+      const ct = Math.cos(TILT), st = Math.sin(TILT);
+      const spinY = 0.45 * (bf - MV.beatFloat(tDim - 0.38)) * d3;
+
+      head(g, 'SET  S', 'if I am a set of points, then a point is a name with numbers', SA);
+
+      /* The three layouts and the morph between them: one coordinate puts the
+       * set on a wire, two make a square, three make a cube. Every point keeps
+       * its name across all three, so what is on the glass is one set gaining a
+       * dimension, not three pictures of three different sets. */
+      const morph = function (u1, u2, v2, u3, v3, w3) {
+        return {
+          u: MV.lerp(MV.lerp(u1, u2, d2), u3, d3),
+          v: MV.lerp(MV.lerp(0, v2, d2), v3, d3),
+          w: d3 * w3,
+        };
+      };
+      const cellAt = function (i) {
+        const u1 = i / (N - 1) * 2 - 1;
+        return morph(u1, (i % 8) / 7 * 2 - 1, ((i / 8) | 0) / 7 * 2 - 1,
+          (i % 4) / 3 * 2 - 1, (((i / 4) | 0) % 4) / 3 * 2 - 1,
+          ((i / 16) | 0) / 3 * 2 - 1);
+      };
+
+      /* One projection for the dots, the wireframe and the axes, so the figure
+       * and the coordinates can never disagree: turn in the plane, turn about
+       * the vertical, pitch the camera, divide by depth. */
+      const proj = function (u, v, w) {
+        const cp = Math.cos(spinP), sp = Math.sin(spinP);
+        const u1 = u * cp - v * sp, v1 = u * sp + v * cp;
+        const cy = Math.cos(spinY), sy = Math.sin(spinY);
+        const u2 = u1 * cy - w * sy, w2 = u1 * sy + w * cy;
+        const vp = v1 * ct - w2 * st, wp = v1 * st + w2 * ct;
+        const k2 = 1 / (1 + 0.30 * (wp * 0.5 + 0.5));
+        return [QX + u2 * R * k2, QY + vp * R * k2, wp];
+      };
+      const edge = function (a, b, alpha) {
+        if (alpha <= 0.01) return;
+        const p = proj(a[0], a[1], a[2]), q = proj(b[0], b[1], b[2]);
+        g.save();
+        g.globalAlpha = SA * alpha;
+        g.strokeStyle = C.cyanDim;
+        g.lineWidth = 1;
+        g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke();
+        g.restore();
+      };
+
+      // the wireframe: four edges while the set is a square, twelve once it is
+      // a cube. Faint -- the dots are the substance and the edges only say
+      // which way the figure is facing, which is what makes it read as solid.
+      if (d2 > 0.05) {
+        const sq = [[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]];
+        const mq = sq.map(function (c) { return morph(c[0], c[0], c[1], c[0], c[1], c[2]); });
+        for (let j = 0; j < 4; j++) {
+          const a = mq[j], b = mq[(j + 1) % 4];
+          edge([a.u, a.v, a.w], [b.u, b.v, b.w], 0.42 * d2 * (1 - d3));
+        }
+      }
+      if (d3 > 0.05) {
+        const cc = [];
+        for (let j = 0; j < 8; j++) {
+          cc.push(morph((j & 1) ? 1 : -1, (j & 1) ? 1 : -1, (j & 2) ? 1 : -1,
+            (j & 1) ? 1 : -1, (j & 2) ? 1 : -1, (j & 4) ? 1 : -1));
+        }
+        for (let j = 0; j < 8; j++) {
+          for (let k = j + 1; k < 8; k++) {
+            const d = j ^ k;
+            if (d === 1 || d === 2 || d === 4) {
+              const a = cc[j], b = cc[k];
+              edge([a.u, a.v, a.w], [b.u, b.v, b.w], 0.44 * d3);
+            }
+          }
+        }
+      }
+
+      // the frame the numbers are measured in: three axes in the same
+      // projection as the points, so the figure and the coordinates agree.
+      // With one dimension the horizontal axis is the set itself: a wire, and
+      // the names on it are single coordinates.
+      const O = proj(0, 0, 0);
+      const AXES = [[[1.5, 0, 0], 'x', 1], [[0, 1.5, 0], 'y', d2], [[0, 0, 1.5], 'z', d3]];
+      for (let j = 0; j < AXES.length; j++) {
+        const A = AXES[j];
+        if (A[2] < 0.05) continue;
+        const q = proj(A[0][0], A[0][1], A[0][2]);
+        g.save();
+        g.globalAlpha = SA * A[2] * 0.55;
+        g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+        if (A[1] === 'z') g.setLineDash([5, 4]);
+        g.beginPath(); g.moveTo(O[0], O[1]); g.lineTo(q[0], q[1]); g.stroke();
+        g.restore();
+        UI.label(g, A[1], q[0] + 9, q[1] + 5, 16, C.cyanDim, SA * A[2] * 0.9);
+      }
+
+      /* Before the set has a shape it is a table, which is what a set of points
+       * with one number each actually looks like on a terminal. The same sixty-
+       * four points are on the wire while the table is up; the table is the data
+       * and the wire is the same data drawn, and both go out together. */
+      const tab = 1 - MV.smooth(MV.ramp(t, tGive1 - 0.30, tGive1 + 0.55));
+      if (tab > 0.004) {
+        const tw = 8, cw2 = 140, chh = 27;
+        const TX = QX - (tw * cw2) / 2, TY = QY + 66;
+        MV.mono(g, 14);
+        UI.text(g, 'index', TX, TY - 22, C.cyanDim, tab * 0.8);
+        UI.text(g, 'coordinate', TX + 52, TY - 22, C.cyanDim, tab * 0.8);
+        for (let i = 0; i < N; i++) {
+          // the coordinate column is the wire's own coordinate, monotonic: the
+          // table is this set's data, and the wire is the same data drawn
+          const tv = i / (N - 1) * 2 - 1;
+          const cx2 = TX + (i % tw) * cw2, cy2 = TY + ((i / tw) | 0) * chh;
+          const hot2 = i === pick;
+          if (hot2) {
+            g.save();
+            g.globalAlpha = tab * 0.6;
+            g.strokeStyle = WH; g.lineWidth = 1;
+            g.strokeRect(cx2 - 8.5, cy2 - 16.5, cw2 - 22, chh - 4);
+            g.restore();
+          }
+          MV.mono(g, 15);
+          UI.text(g, DIG.charAt(i % 36) + (i > 35 ? '\u2032' : ''), cx2, cy2,
+            hot2 ? WH : C.cyanDim, tab * (hot2 ? 1 : 0.8));
+          UI.text(g, (tv < 0 ? '-' : '+') + Math.abs(tv).toFixed(3), cx2 + 30, cy2,
+            hot2 ? WH : CY, tab * (hot2 ? 1 : 0.72));
+        }
+      }
+      const pts = [];
+      for (let i = 0; i < N; i++) {
+        const c = cellAt(i);
+        const P = proj(c.u, c.v, c.w);
+        pts.push({ i: i, x: P[0], y: P[1], z: P[2], dep: P[2] * 0.5 + 0.5 });
+      }
+      pts.sort(function (a, b) { return a.z - b.z; });
+      for (let j = 0; j < pts.length; j++) {
+        const p = pts[j];
+        const dep = d3 > 0.02 ? 0.44 + 0.56 * p.dep : 1;
+        const hot = p.i === pick;
+        g.save();
+        g.globalAlpha = SA * dep * (hot ? 1 : 0.85);
+        g.fillStyle = hot ? WH : PH;
+        if (hot) { g.shadowColor = WH; g.shadowBlur = 12; }
+        g.beginPath();
+        g.arc(p.x, p.y, (hot ? 4.4 : 2.5) * (0.82 + 0.36 * p.dep), 0, TAU);
+        g.fill();
+        g.restore();
+        MV.mono(g, 16);
+        g.save();
+        // on the wire the names would pile up, so only every third point is named
+        // until the cloud has unfolded enough to hold all sixty-four
+        const heat = hot ? 1 : (p.i % 3 === 0 ? 1 : MV.smooth(MV.ramp(d2, 0.30, 0.80)));
+        if (heat > 0.01) {
+          g.globalAlpha = SA * dep * heat * (hot ? 0.95 : 0.55);
+          g.fillStyle = hot ? WH : CY;
+          MV.picText(g, DIG.charAt(p.i % 36) + (p.i > 35 ? '\u2032' : ''), p.x + 7, p.y - 8);
+        }
+        g.restore();
+        if (hot) {
+          g.save();
+          g.globalAlpha = SA * 0.75;
+          g.strokeStyle = WH; g.lineWidth = 1.2;
+          g.beginPath(); g.arc(p.x, p.y, 12 + 5 * MV.pulse(t, 0.5), 0, TAU); g.stroke();
+          g.restore();
+        }
+      }
+
+      // the ladder on the right: one number, two, three
+      for (let j = 0; j < 3; j++) {
+        const on = j === 0 ? 1 : (j === 1 ? d2 : d3);
+        const bx = 1758, by = 300 + j * 122, bw = 130, bh = 96;
+        g.save();
+        g.globalAlpha = SA * (0.12 + 0.66 * on);
+        g.strokeStyle = on > 0.5 ? CY : C.cyanDim;
+        g.lineWidth = on > 0.5 ? 2 : 1;
+        g.strokeRect(bx + 0.5, by + 0.5, bw, bh);
+        g.restore();
+        MV.mono(g, 44, 'bold');
+        const w2 = g.measureText('' + (j + 1)).width;
+        g.save();
+        g.globalAlpha = SA * (0.25 + 0.72 * on);
+        g.fillStyle = on > 0.5 ? CY : C.cyanDim;
+        if (on > 0.5) { g.shadowColor = CY; g.shadowBlur = 16; }
+        MV.picText(g, '' + (j + 1), bx + (bw - w2) / 2, by + 62);
+        g.restore();
+        MV.mono(g, 12);
+        UI.text(g, j === 0 ? 'one number' : (j === 1 ? 'two numbers' : 'three numbers'),
+          bx, by + bh + 18, on > 0.5 ? C.phosMid : C.cyanDim, SA * (0.35 + 0.65 * on));
+      }
+
+      const pk = cellAt(pick);
+      const co = function (v) { return (v < 0 ? '-' : ' ') + Math.abs(v).toFixed(4); };
+      const nd = 1 + (d2 > 0.45 ? 1 : 0) + (d3 > 0.45 ? 1 : 0);
+      const tup = '(' + co(pk.u) + (d2 > 0.45 ? ',' + co(pk.v) : '') +
+        (d3 > 0.45 ? ',' + co(pk.w) : '') + ')';
+      kv(g, '|S|', '64', 250, SA);
+      kv(g, 'dim(S)', '' + nd, 286, SA, WH, 22);
+      kv(g, 'p' + pick, tup, 328, SA, WH);
+      kv(g, 'embedding', 'R^' + nd, 364, SA);
+      kv(g, 'metric', 'euclidean', 400, SA, C.cyanDim);
+      note(g, '// the name of one point is ' + nd + ' number' + (nd > 1 ? 's' : ''), 470, SA);
+    }
+
+    /* ======================================================== 2. circle
+     * "If I'm a circle": one number, r, fixes every point of me. What the act
+     * then does is unroll that set into its own circumference -- the arc is
+     * peeled off the ring at exactly the rate it is laid down flat, so 2*pi*r is
+     * not asserted on a panel, it is shown as a length you can read off a ruler. */
+    const SB = MV.taper(t, tCir - 0.28, tCir + 0.14, tSin - 0.30, tSin + 0.12);
+    if (SB > 0.004) {
+      const R = 290;
+      const OX = 950, OY = 424;
+      const q = MV.smooth(MV.ramp(t, tGive2 + 0.10, tCirc + 0.10));
+      const LL = TAU * R;
+      const LX = 50, LY = 826;
+      const a1 = -Math.PI / 2 + q * TAU;
+      head(g, 'CIRCUMFERENCE', 'r = 1 fixes every point of me;  C = 2*pi*r is the whole of it', SB);
+      MV.mono(g, 320, 'bold');
+      g.save();
+      g.globalAlpha = SB * 0.13;
+      g.fillStyle = CY;
+      MV.picText(g, '\u03c0', 1620, 500);
+      g.restore();
+      MV.mono(g, 20);
+      UI.text(g, 'x 2', 1820, 500, C.cyanDim, SB * 0.5);
+
+      g.save();
+      g.globalAlpha = SB * 0.8;
+      g.strokeStyle = CY; g.lineWidth = 2.2;
+      g.beginPath(); g.arc(OX, OY, R, 0, TAU); g.stroke();
+      g.globalAlpha = SB * 0.7;
+      g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+      for (let j = 0; j < 24; j++) {
+        const aj = -Math.PI / 2 + (j / 24) * TAU;
+        g.beginPath();
+        g.moveTo(OX + Math.cos(aj) * R, OY + Math.sin(aj) * R);
+        g.lineTo(OX + Math.cos(aj) * (R - 16), OY + Math.sin(aj) * (R - 16));
+        g.stroke();
+      }
+      g.restore();
+      if (q > 0.0005) {
+        g.save();
+        g.globalAlpha = SB * 0.95;
+        g.strokeStyle = PH; g.lineWidth = 3.4;
+        g.shadowColor = PH; g.shadowBlur = 14;
+        g.beginPath(); g.arc(OX, OY, R, -Math.PI / 2, a1); g.stroke();
+        g.restore();
+      }
+
+      // the spokes: every arc sample and its image on the straight line
+      if (q > 0.02 && q < 0.995) {
+        g.save();
+        g.globalAlpha = SB * 0.18;
+        g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+        g.beginPath();
+        for (let j = 1; j <= 8; j++) {
+          const a2 = q * TAU * (j / 9);
+          g.moveTo(OX + Math.cos(-Math.PI / 2 + a2) * R, OY + Math.sin(-Math.PI / 2 + a2) * R);
+          g.lineTo(LX + R * a2, LY);
+        }
+        g.stroke();
+        g.restore();
+      }
+
+      const hx = OX + Math.cos(a1) * R, hy = OY + Math.sin(a1) * R;
+      const nx = LX + LL * q;
+      g.save();
+      g.globalAlpha = SB * 0.9;
+      g.strokeStyle = PH; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(OX, OY); g.lineTo(hx, hy); g.stroke();
+      g.restore();
+      UI.label(g, 'r', (OX + hx) / 2 + 10, (OY + hy) / 2 - 6, 18, PH, SB * 0.95);
+      if (q > 0.02) {
+        g.save();
+        g.globalAlpha = SB * 0.5;
+        g.strokeStyle = CY; g.lineWidth = 1;
+        g.setLineDash([6, 5]);
+        g.beginPath(); g.moveTo(hx, hy); g.lineTo(nx, LY); g.stroke();
+        g.restore();
+      }
+
+      // the unrolled length, and the ruler under it. The frame is 1920 wide and
+      // 2*pi*290 is 1822, so the whole circumference fits across the glass.
+      g.save();
+      g.globalAlpha = SB * 0.95;
+      g.strokeStyle = PH; g.lineWidth = 3.4;
+      g.shadowColor = PH; g.shadowBlur = 14;
+      g.beginPath(); g.moveTo(LX, LY + 0.5); g.lineTo(Math.max(nx, LX + 0.2), LY + 0.5); g.stroke();
+      g.restore();
+      const marks = Math.floor(q * 24);
+      g.save();
+      g.globalAlpha = SB * 0.75;
+      g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+      for (let j = 0; j <= marks; j++) {
+        const x = LX + (LL / 24) * j;
+        g.beginPath();
+        g.moveTo(x + 0.5, LY + 2);
+        g.lineTo(x + 0.5, LY + (j % 6 === 0 ? 18 : 10));
+        g.stroke();
+      }
+      g.restore();
+      const LB = ['0', '\u03c0/2', '\u03c0', '3\u03c0/2', '2\u03c0'];
+      for (let j = 0; j <= 4; j++) {
+        if (marks < j * 6) continue;
+        UI.label(g, LB[j], LX + (LL / 24) * (j * 6) + 5, LY + 36, 14, C.cyanDim, SB * 0.85);
+      }
+
+      kv(g, 'r', '1.000', 240, SB);
+      kv(g, 'C = 2*pi*r', '6.283185', 276, SB, WH, 20);
+      kv(g, 'arc traced', (TAU * q).toFixed(4), 312, SB);
+      kv(g, 'unrolled', (q * 100).toFixed(0) + '%', 348, SB);
+      kv(g, 'in pixels', (LL * q).toFixed(1) + ' / ' + LL.toFixed(1), 384, SB, C.cyanDim);
+      kv(g, 'straight?', q > 0.995 ? 'true' : 'false', 420, SB, q > 0.995 ? PH : C.cyanDim);
+      bar(g, q, 452, SB);
+      note(g, '// the ring and the line are the same length', 500, SB);
+    }
+
+    /* ======================================================== 3. sine
+     * "If I'm a sine wave": the wave is a circle seen from the side, and the
+     * phase point on the ring and the point on the wave are always at the same
+     * height -- so the dashed line joining them is not decoration, it is the
+     * definition. Then every point carries a tangent, and the tangents are the
+     * cosine drawn one slope at a time.
+     *
+     * Every curve in this act is drawn once at its true size and revealed by a
+     * clip. Re-fitting a plot into the revealed width instead compresses the
+     * whole curve into a sliver and then stretches it out: the wave breathes,
+     * which is the one thing a wave must not do. */
+    const SX = MV.taper(t, tSin - 0.26, tSin + 0.14, tInf - 0.30, tInf + 0.12);
+    if (SX > 0.004) {
+      const R = 190;
+      const OX = 1620, OY = 560;
+      const WX = 420, WW = 920, PER = 2;
+      const ph = function (u) { return TAU * PER * u; };
+      const wy = function (u) { return OY - R * Math.sin(ph(u)); };
+      const sl = function (u) { return -R * Math.cos(ph(u)) * TAU * PER / WW; };
+      const lead = (MV.beatFloat(t) * 0.2) % 1;
+      const WR = { x: WX, y: 0, w: WW, h: 1080 };
+      const wf = function (u) { return (1080 - wy(u)) / 1080; };
+      head(g, 'TANGENTS', 'you can sit on all my slopes, and there is one at every point', SX);
+
+      // the derivative band: how steep, drawn as a height. The reveal clips the
+      // band, it does not shrink it: a plot compressed into the revealed width
+      // redraws the whole curve inside a sliver, which reads as a bundle of
+      // vertical strokes rather than as a wave being written.
+      const cd = { x: WX, y: 168, w: WW, h: 148 };
+      MV.mono(g, 15);
+      UI.text(g, "f'(x) = cos x", cd.x, cd.y - 10, C.cyanDim, SX * 0.85);
+      UI.rule(g, cd.x, cd.x + cd.w, cd.y + cd.h * 0.5, C.cyanDim, SX * 0.5);
+      const revealed = function (x, y, w, h, draw) {
+        if (w <= 0.5) return;
+        g.save();
+        g.beginPath(); g.rect(x, y, w, h); g.clip();
+        draw();
+        g.restore();
+      };
+      const cosBand = function (u) { return 0.5 + 0.40 * Math.cos(ph(u)); };
+      MV.plot(g, cd, cosBand, { color: CY, alpha: SX * 0.7, width: 1.4, samples: 260 });
+      revealed(cd.x, cd.y, cd.w * lead, cd.h, function () {
+        MV.plot(g, cd, cosBand, { color: PH, alpha: SX * 0.95, width: 2, glow: 8, samples: 260 });
+      });
+
+      // the wave, and the part of it the phase point has already written. The
+      // bright trace is the *same* curve, revealed by a clip: scaling the plot
+      // rect instead would squeeze two whole periods into the sliver that has
+      // been written so far and then stretch them out, which is a wave that
+      // breathes rather than a pen that moves.
+      UI.rule(g, WX, WX + WW, OY, C.cyanDim, SX * 0.35);
+      UI.rule(g, WX, WX + WW, OY - R, C.cyanDim, SX * 0.25, true);
+      UI.rule(g, WX, WX + WW, OY + R, C.cyanDim, SX * 0.25, true);
+      MV.plot(g, WR, wf, { color: CY, alpha: SX * 0.55, width: 1.6, samples: 340 });
+      revealed(WX, 0, WW * lead, 1080, function () {
+        MV.plot(g, WR, wf, { color: PH, alpha: SX * 0.95, width: 2.6, glow: 10, samples: 340 });
+      });
+      // the pen itself: a bright edge at the write head, so the reveal reads as
+      // something moving along the curve and not as a fade across it
+      g.save();
+      g.globalAlpha = SX * 0.5;
+      g.strokeStyle = PH;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(WX + WW * lead + 0.5, OY - R - 12);
+      g.lineTo(WX + WW * lead + 0.5, OY + R + 12);
+      g.stroke();
+      g.restore();
+
+      // the slope field: the tangent at every point, faint, then the ones that
+      // are loud enough to sit on. Every dash is the same length on the glass --
+      // a tangent drawn by its slope alone comes out as a slash that crosses the
+      // wave twice, which reads as noise rather than as a slope.
+      const sf = MV.smooth(MV.ramp(t, tSit, tSit + 0.9));
+      const seg = function (x, y, m2, tl, a) {
+        const dx = tl / Math.sqrt(1 + m2 * m2), dy = m2 * dx;
+        g.save();
+        g.globalAlpha = a;
+        g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x + dx, y + dy); g.stroke();
+        g.restore();
+      };
+      if (sf > 0.01) {
+        for (let j = 0; j <= 47; j++) {
+          const u = j / 47;
+          seg(WX + u * WW, wy(u), sl(u), 16, SX * sf * 0.45);
+        }
+      }
+      const U = [0.08, 0.24, 0.40, 0.56, 0.72, 0.88];
+      const TL = 78;
+      for (let j = 0; j < U.length; j++) {
+        const aj = MV.smooth(MV.ramp(t, tSit + 0.06 + j * 0.24, tSit + 0.30 + j * 0.24));
+        if (aj <= 0.004) continue;
+        const u = U[j], x = WX + u * WW, y = wy(u), m2 = sl(u);
+        const dxx = TL / Math.sqrt(1 + m2 * m2), dyy = m2 * dxx;
+        g.save();
+        g.globalAlpha = SX * aj * 0.85;
+        g.strokeStyle = PH; g.lineWidth = 1.4;
+        g.beginPath();
+        g.moveTo(x - dxx, y - dyy);
+        g.lineTo(x + dxx, y + dyy);
+        g.stroke();
+        g.globalAlpha = SX * aj * 0.9;
+        g.fillStyle = WH;
+        g.beginPath(); g.arc(x, y, 3.2, 0, TAU); g.fill();
+        g.restore();
+        // a rider whose entire job is to sit on it
+        const slide = 0.5 + 0.5 * Math.sin(t * 1.15 + j * 1.9);
+        const sx2 = x + (slide - 0.5) * 2 * dxx * 0.72;
+        const sy2 = y + m2 * (sx2 - x);
+        const flung = j === 5 ? MV.smooth(MV.ramp(t, tTan - 0.30, tTan + 0.08)) : 0;
+        const fx = sx2 + flung * 150, fy = sy2 + flung * flung * 118;
+        MV.mini(g, fx, fy - 40, 19, PH, SX * aj * (1 - flung * 0.85), m2 > 0 ? 1 : -1, 7);
+        if (j === 5 && flung > 0.9) {
+          UI.label(g, 'respawn', fx + 22, fy - 40, 12, C.phosDim, SX * 0.7);
+        }
+      }
+
+      // the phase circle, and the leader that proves the two points are level
+      const th2 = ph(lead);
+      const px2 = OX + R * Math.cos(th2), py2 = OY - R * Math.sin(th2);
+      g.save();
+      g.globalAlpha = SX * 0.4;
+      g.strokeStyle = CY; g.lineWidth = 1;
+      g.setLineDash([7, 6]);
+      g.beginPath(); g.moveTo(px2, py2); g.lineTo(WX + WW * lead, py2); g.stroke();
+      g.restore();
+      g.save();
+      g.globalAlpha = SX * 0.8;
+      g.strokeStyle = CY; g.lineWidth = 2;
+      g.beginPath(); g.arc(OX, OY, R, 0, TAU); g.stroke();
+      g.globalAlpha = SX * 0.45;
+      g.beginPath();
+      g.moveTo(OX - R, OY + 0.5); g.lineTo(OX + R, OY + 0.5);
+      g.moveTo(OX + 0.5, OY - R); g.lineTo(OX + 0.5, OY + R);
+      g.stroke();
+      g.restore();
+      g.save();
+      g.globalAlpha = SX * 0.95;
+      g.strokeStyle = PH; g.lineWidth = 1.8;
+      g.shadowColor = PH; g.shadowBlur = 8;
+      g.beginPath(); g.moveTo(OX, OY); g.lineTo(px2, py2); g.stroke();
+      g.restore();
+      g.save();
+      g.globalAlpha = SX * 0.8;
+      g.strokeStyle = PH; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(px2, OY); g.lineTo(px2, py2); g.stroke();
+      g.restore();
+      UI.label(g, 'sin', px2 + 9, (OY + py2) / 2, 14, PH, SX * 0.9);
+      UI.label(g, '1', OX + R + 8, OY + 5, 13, C.cyanDim, SX * 0.7);
+      UI.label(g, 'f(x)', WX + WW * lead + 8, py2 + 5, 14, PH, SX * 0.85);
+      MV.mono(g, 15);
+      UI.text(g, 'f(x) = sin x', WX, OY + R + 34, CY, SX * 0.8);
+
+      const thMod = th2 % TAU;
+      kv(g, 'theta', (thMod * 180 / Math.PI).toFixed(1) + ' deg', 250, SX);
+      kv(g, 'f(x) = sin x', Math.sin(thMod).toFixed(4), 286, SX);
+      kv(g, "f'(x) = cos x", Math.cos(thMod).toFixed(4), 322, SX);
+      kv(g, 'dy/dx here', sl(lead).toFixed(3), 358, SX, WH);
+      kv(g, 'tangents drawn', '6', 394, SX, C.cyanDim);
+      note(g, '// a wave is a slope that keeps changing', 470, SX);
+    }
+
+    /* ======================================================== 4. infinity
+     * "If I approach infinity": the only honest way to draw n -> infinity on a
+     * screen this finite is a logarithmic axis, so the frame's own width is the
+     * approach. f(x) = 1 - 1/x reaches 1 for no x at all; the epsilon band
+     * narrows by a decade a beat and the points keep entering it. What is left
+     * on the glass at the end is the line it never touches. */
+    const SD = MV.taper(t, tInf - 0.24, tInf + 0.16, 44.34, 44.62);
+    if (SD > 0.004) {
+      const PR = { x: 470, y: 196, w: 880, h: 452 };
+      const V0 = 0.70, V1 = 1.012;
+      const vv = function (v) { return (v - V0) / (V1 - V0); };
+      const lgx = function (u) { return Math.pow(10, 0.6 + 9 * u); };
+      const fu = function (u) { return 1 - 1 / lgx(u); };
+      const yL = PR.y + PR.h * (1 - vv(1));
+      const mag = 2 + MV.clamp(Math.floor(MV.ramp(t, tBe + 0.05, 44.05) * 6), 0, 6);
+      const eps = Math.pow(10, -mag);
+      const hb = Math.max(3, eps / (V1 - V0) * PR.h);
+      const end = MV.smooth(MV.ramp(t, tLim + 0.35, tLim + 1.05));
+      head(g, 'LIMITATIONS', 'if I approach infinity, then you can be my limit', SD);
+      note(g, 'a(n) = 1 - 1/n,   n = 2^k', 172, SD);
+
+      // the band the curve has to enter, drawn in units of epsilon
+      g.save();
+      g.globalAlpha = SD * 0.10;
+      g.fillStyle = CY;
+      g.fillRect(PR.x, yL - hb, PR.w, 2 * hb);
+      g.globalAlpha = SD * 0.6;
+      g.strokeStyle = CY; g.lineWidth = 1;
+      g.setLineDash([7, 6]);
+      g.beginPath();
+      g.moveTo(PR.x, yL - hb + 0.5); g.lineTo(PR.x + PR.w, yL - hb + 0.5);
+      g.moveTo(PR.x, yL + hb + 0.5); g.lineTo(PR.x + PR.w, yL + hb + 0.5);
+      g.stroke();
+      g.restore();
+      UI.label(g, 'EPS = ' + eps.toExponential(0), PR.x + 2, yL + hb + 22, 14,
+        CY, SD * 0.9);
+      MV.mono(g, 14);
+
+      // the axis is logarithmic, so a decade is a fixed step of the glass
+      UI.rule(g, PR.x, PR.x + PR.w, PR.y + PR.h, C.cyanDim, SD * 0.5);
+      for (let d = 1; d <= 9; d++) {
+        const x = PR.x + ((d - 0.6) / 9) * PR.w;
+        g.save();
+        g.globalAlpha = SD * 0.5;
+        g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(x + 0.5, PR.y + PR.h); g.lineTo(x + 0.5, PR.y + PR.h + 8); g.stroke();
+        g.restore();
+        if (d % 2 === 1) MV.mono(g, 12);
+        if (d % 2 === 1) UI.text(g, '1e' + d, x + 3, PR.y + PR.h + 24, C.cyanDim, SD * 0.75);
+      }
+
+      MV.plot(g, PR, function (u) { return vv(fu(u)); },
+        { color: CY, alpha: SD * 0.9 * (1 - 0.6 * end), width: 2, samples: 420 });
+      MV.plot(g, PR, fu, { color: WH, alpha: SD * 0.9 * end, width: 1.6, samples: 420 });
+
+      // the sequence n = 2^k, and the gap it still has to close
+      let inside = 0;
+      for (let k = 2; k <= 30; k++) if (Math.pow(2, -k) <= eps) inside++;
+      let last = -1, lx = 0, ly = 0, la = 0;
+      for (let k = 2; k <= 30; k++) {
+        const u = (k * 0.30103 - 0.6) / 9;
+        if (u < 0 || u > 1) continue;
+        const ak = MV.smooth(MV.ramp(t, tInf + 0.15 + k * 0.062, tInf + 0.39 + k * 0.062));
+        if (ak <= 0.004) continue;
+        const x = PR.x + u * PR.w;
+        const y = PR.y + PR.h * (1 - vv(1 - Math.pow(2, -k)));
+        const inb = Math.pow(2, -k) <= eps;
+        g.save();
+        g.globalAlpha = SD * ak * 0.5 * (1 - 0.7 * end);
+        g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(x + 0.5, y); g.lineTo(x + 0.5, yL); g.stroke();
+        g.globalAlpha = SD * ak * (inb ? 1 : 0.7) * (1 - 0.6 * end);
+        g.fillStyle = inb ? WH : PH;
+        if (inb) { g.shadowColor = WH; g.shadowBlur = 10; }
+        g.beginPath(); g.arc(x, y, inb ? 3.4 : 2.6, 0, TAU); g.fill();
+        g.restore();
+        last = k; lx = x; ly = y; la = ak;
+      }
+      if (last > 0) {
+        const lg = '2^' + last;
+        UI.label(g, lg, lx + 10, ly + 38, 15, WH, SD * la * (1 - 0.5 * end));
+        UI.label(g, 'n = ' + Math.pow(2, last).toExponential(2), lx + 10, ly + 58, 13,
+          C.phosMid, SD * la * 0.85 * (1 - 0.5 * end));
+      }
+
+      // the same five terms as a table, because that is how a machine reports a
+      // sequence: k, n, the value, and the gap it has not closed
+      if (last >= 2) {
+        const k0 = Math.max(2, last - 4);
+        const ty0 = PR.y + PR.h + 54;
+        MV.mono(g, 14);
+        UI.text(g, 'k', PR.x + 20, ty0, C.cyanDim, SD * 0.8);
+        UI.text(g, 'n', PR.x + 74, ty0, C.cyanDim, SD * 0.8);
+        UI.text(g, 'a(n) = 1 - 1/n', PR.x + 240, ty0, C.cyanDim, SD * 0.8);
+        UI.text(g, 'gap', PR.x + 470, ty0, C.cyanDim, SD * 0.8);
+        for (let k = k0; k <= last; k++) {
+          const rr = ty0 + 28 * (k - k0 + 1);
+          const hp = k === last;
+          MV.mono(g, 15);
+          UI.text(g, '2^' + k, PR.x + 20, rr, hp ? WH : C.cyanDim, SD * (hp ? 1 : 0.75));
+          UI.text(g, Math.pow(2, k).toExponential(2), PR.x + 74, rr,
+            hp ? WH : CY, SD * (hp ? 1 : 0.8));
+          UI.text(g, (1 - Math.pow(2, -k)).toFixed(10), PR.x + 240, rr,
+            hp ? WH : CY, SD * (hp ? 1 : 0.8));
+          UI.text(g, Math.pow(2, -k).toExponential(1), PR.x + 470, rr,
+            hp ? WH : PH, SD * (hp ? 1 : 0.85));
+        }
+      }
+
+      // L itself: dashed while the approach runs, one white pixel line after it
+      UI.rule(g, PR.x - 30, PR.x + PR.w + 30, yL, C.phosMid, SD * (0.55 + 0.45 * end), true);
+      UI.label(g, 'L = 1', PR.x + PR.w + 40, yL + 5, 16, PH, SD * 0.95);
+
+      // the gap, magnified, and the reason the magnification never helps
+      const IB = { x: 1424, y: 250, w: 432, h: 580 };
+      g.save();
+      g.globalAlpha = SD * 0.55;
+      g.strokeStyle = C.cyanDim; g.lineWidth = 1;
+      g.setLineDash([6, 5]);
+      g.strokeRect(IB.x + 0.5, IB.y + 0.5, IB.w, IB.h);
+      g.restore();
+      MV.mono(g, 15);
+      UI.text(g, 'the gap, magnified', IB.x + 14, IB.y + 30, CY, SD * 0.9);
+      MV.mono(g, 12);
+      UI.text(g, 'the drawing keeps its size;', IB.x + 14, IB.y + 52, C.cyanDim, SD * 0.8);
+      UI.text(g, 'the number does not.', IB.x + 14, IB.y + 70, C.cyanDim, SD * 0.8);
+      const iyB = IB.y + 150, gd = 96;
+      UI.rule(g, IB.x + 26, IB.x + IB.w - 26, iyB, PH, SD * 0.9);
+      MV.mono(g, 14);
+      UI.text(g, 'L = 1', IB.x + 30, iyB - 12, PH, SD * 0.9);
+      g.save();
+      g.globalAlpha = SD * 0.85;
+      g.strokeStyle = CY; g.lineWidth = 1.8;
+      g.beginPath();
+      for (let i = 0; i <= 70; i++) {
+        const u = i / 70;
+        const x = IB.x + 26 + u * (IB.w - 100);
+        const y = iyB + gd * Math.exp(-u * 3.1) + (1 - Math.exp(-u * 3.1)) * 3;
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.stroke();
+      g.restore();
+      const bx = IB.x + IB.w - 74;
+      g.save();
+      g.globalAlpha = SD * 0.95;
+      g.strokeStyle = WH; g.lineWidth = 1.6;
+      g.beginPath();
+      g.moveTo(bx, iyB + 2); g.lineTo(bx, iyB + gd);
+      g.moveTo(bx - 7, iyB + 2); g.lineTo(bx + 7, iyB + 2);
+      g.moveTo(bx - 7, iyB + gd); g.lineTo(bx + 7, iyB + gd);
+      g.stroke();
+      g.restore();
+      MV.mono(g, 15);
+      UI.text(g, 'gap ' + eps.toExponential(0), IB.x + 30, iyB + gd + 40, WH, SD * 0.95);
+      MV.mono(g, 12);
+      UI.text(g, 'x = 1.07e+09', IB.x + 30, IB.y + IB.h - 26, C.cyanDim, SD * 0.8);
+
+      kv(g, 'n = 2^30', '1.0737e+09', 250, SD);
+      kv(g, 'a(n)', (1 - Math.pow(2, -30)).toFixed(10), 286, SD);
+      kv(g, '|a(n) - L|', Math.pow(2, -30).toExponential(1), 322, SD, WH);
+      kv(g, 'EPS', eps.toExponential(0), 358, SD, PH);
+      kv(g, 'inside EPS', inside + ' / 29', 394, SD);
+      kv(g, 'L', '1.0000000000', 430, SD, C.cyanDim);
+      kv(g, 'reached?', end > 0.5 ? 'still no' : 'no', 466, SD, PH, 20);
+      note(g, '// the approach is real; the arrival is not', 520, SD);
+    }
+  }

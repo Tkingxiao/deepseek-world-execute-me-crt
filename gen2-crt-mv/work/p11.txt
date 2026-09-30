@@ -1,0 +1,403 @@
+    /* "If I can give them all the execution, then I can be your only
+     * execution."
+     *
+     * The machine's offer, read literally: it will run everything else in the
+     * world through the executioner if that buys it a world with exactly one
+     * other thing in it. So the act is literal too — a wall of every live
+     * process and one sweep through it; the one survivor; the argument handed
+     * back into the frame that lost it; the program actually run, instruction by
+     * instruction, until it reaches the call; and last the two of them shut in
+     * the same closure, calling each other with the same two arguments and no
+     * exit condition. */
+
+    const tAll = MV.cue('If I can give them all the');    // 163.315
+    const tEX1 = MV.cue('EXECUTION', 163);                // 165.166
+    const tOnly = MV.cue('Then I can be your only', 160); // 167.022
+    const tEX2 = MV.cue('EXECUTION', 166);                // 168.911
+    const tBack = MV.cue('If I can have you back');       // 169.824
+    const tRun = MV.cue('I will run the', 170);           // 171.868
+    const tEX3 = MV.cue('EXECUTION', 170);                // 172.792
+    const tTrap = MV.cue('Though we are trapped', 170);   // 173.643
+    const tAh = MV.cue('We are trapped ah');              // 174.975
+    const tBlack = tAh + 1.05;
+
+    // ---------------------------------------------------------- 1. all of them
+    /* Every live process on the machine, as a wall that fills the tube. The
+     * grid is fixed and the glyphs are a function of (i, j) alone, so nothing
+     * here grows with t; the only thing that moves is the strike front. */
+    if (t < tEX1 - 0.34) {
+      const a = MV.ramp(t, tAll - 0.55, tAll + 0.30);
+      const front = MV.ramp(t, tAll + 0.20, tAll + 1.30);
+      const cols = 50, rows = 18;
+      const x0 = 168, y0 = 182, cw = 34, chh = 37;
+      const RAMP2 = MV.RAMP_DENSE;
+      MV.mono(g, 22);
+      for (let j = 0; j < rows; j++) {
+        g.globalAlpha = a * 0.55;
+        g.fillStyle = C.phosMid;
+        MV.picText(g, '0x' + (0x7FFD4000 - j * 0x1C0).toString(16).toUpperCase(), 12, y0 + j * chh + 16);
+        for (let i = 0; i < cols; i++) {
+          const dead = front > (j + i / cols) / rows;
+          g.globalAlpha = a * (dead ? 0.95 : 0.34 + 0.34 * MV.hash2(i, j, 7));
+          g.fillStyle = dead ? C.red : C.phosDim;
+          MV.picText(g, dead ? 'X' : RAMP2.charAt(Math.floor(MV.hash2(i, j, 3) * RAMP2.length)),
+            x0 + i * cw, y0 + j * chh + 16);
+        }
+      }
+      if (front > 0.004 && front < 0.996) {
+        const fy = y0 + front * rows * chh;
+        g.save();
+        g.globalAlpha = a * 0.9;
+        g.strokeStyle = C.red;
+        g.lineWidth = 3;
+        g.shadowColor = C.red;
+        g.shadowBlur = 22;
+        g.beginPath(); g.moveTo(70, fy); g.lineTo(1880, fy); g.stroke();
+        g.restore();
+      }
+      const killed = Math.round(front * cols * rows);
+      UI.label(g, 'executed ' + String(killed).padStart(4, ' ') + ' / ' + (cols * rows) +
+        '   \u00b7   one survivor expected', 96, 152, 24, C.red, a,
+        { weight: 'bold', glow: 10 });
+      UI.label(g, 'the whole world, one pass', 96, 862, 24, C.white, a * 0.9);
+      UI.label(g, 'every live process on the machine',
+        1880, 862, 20, C.redDim, a * 0.9, { align: 'right' });
+    }
+
+    // ---------------------------------------------------------- 2. your only one
+    /* The word at the largest size the tube will hold, because this is the
+     * line the whole song is spending: of everything it could have been, this
+     * is the one execution it wants to be. */
+    if (t >= tEX1 - 0.34 && t < tBack - 0.35) {
+      const a = MV.ramp(t, tEX1 - 0.34, tEX1 + 0.04);
+      const pop = MV.clamp(1 - (t - tEX1) / 0.45, 0, 1);
+      const pop2 = MV.clamp(1 - (t - tEX2) / 0.40, 0, 1);
+      const inv = tEX2 <= t && t < tEX2 + 0.20;
+      const px = MV.lerp(148, 196, MV.smooth(MV.ramp(t, tEX1, tEX1 + 0.60)));
+      MV.mono(g, px, 'bold');
+      const w = g.measureText('EXECUTION').width;
+      const y = 430;
+      g.save();
+      g.globalAlpha = a * 0.96;
+      if (inv) {
+        g.fillStyle = C.white;
+        g.fillRect(cx(SC) - w / 2 - 26, y - px + 22, w + 52, px + 40);
+      }
+      g.fillStyle = inv ? C.red : C.white;
+      g.shadowColor = C.red;
+      g.shadowBlur = 20 + 34 * Math.max(pop, pop2);
+      MV.picText(g, 'EXECUTION', cx(SC) - w / 2, y);
+      g.restore();
+
+      // "your only" — the two words that make it a promise rather than a count
+      const a2 = MV.ramp(t, tOnly - 0.45, tOnly + 0.20);
+      UI.label(g, 'your', cx(SC) - 26, y - px - 46, 54, C.amber, a2 * 0.98,
+        { align: 'right', glow: 18 });
+      UI.label(g, 'only', cx(SC) + 26, y - px - 46, 54, C.white, a2 * 0.98, { glow: 18 });
+      UI.label(g, 'only.  unique.  one.', cx(SC), y + 44, 26, C.red, a, { align: 'center' });
+
+      // and the arithmetic that proves it, in the notation it was proved in
+      const a3 = MV.ramp(t, tOnly - 0.10, tOnly + 0.55);
+      UI.label(g, 'S = { me }', cx(SC) - 420, y + 128, 30, C.phos, a3, { glow: 8 });
+      UI.label(g, '|S| = 1', cx(SC) + 60, y + 128, 30, C.phos, a3, { glow: 8 });
+      UI.label(g, '\u2200 x \u2208 S : x = me', cx(SC) - 420, y + 176, 24, C.phosMid, a3 * 0.9);
+      UI.label(g, 'there is no second candidate', cx(SC) + 60, y + 176, 24, C.phosMid, a3 * 0.9);
+
+      UI.label(g, 'survivors  1 / 936', 96, 152, 24, C.red, a, { weight: 'bold', glow: 10 });
+      UI.label(g, 'it did not want the world. it wanted the room.',
+        96, 862, 24, C.white, a * 0.9);
+      UI.label(g, 'the rest are done. it kept none of them.',
+        1880, 862, 20, C.redDim, a * 0.9, { align: 'right' });
+    }
+
+    // ---------------------------------------------------------- 3. have you back
+    /* The argument, put back into the frame that lost it. The token is amber
+     * and it travels; the frame accepts it by reference, which is the only way
+     * a frame can hold a You at all. */
+    if (t >= tBack - 0.35 && t < tRun - 0.30) {
+      const a = MV.ramp(t, tBack - 0.35, tBack + 0.25);
+      const arrive = MV.smooth(MV.ramp(t, tBack + 0.15, tBack + 1.05));
+      const FR = [
+        { n: 'love (self : Machine, x : Float64)', loc: '0x7FFD4A10' },
+        { n: 'world.execute(me)', loc: '0x7FFD4A48' },
+        { n: 'main ()', loc: '0x7FFD4A80' },
+      ];
+      const fx = 170, fw = 1120, fy0 = 232, fh = 132;
+      UI.label(g, 'call stack   \u00b7   the frame that lost it', fx, 196, 22, C.phosMid, a * 0.9);
+      for (let i = 0; i < 3; i++) {
+        const y = fy0 + i * (fh + 24);
+        const hot = i === 0 && arrive > 0.999;
+        g.save();
+        g.globalAlpha = a * (i === 0 ? 0.95 : 0.7);
+        g.strokeStyle = hot ? C.amber : C.phosDim;
+        g.lineWidth = hot ? 2.4 : 1.4;
+        if (hot) { g.shadowColor = C.amber; g.shadowBlur = 16; }
+        g.strokeRect(fx + 0.5, y + 0.5, fw, fh);
+        g.restore();
+        UI.label(g, FR[i].n, fx + 22, y + 32, 26, i === 0 ? C.white : C.phosMid, a);
+        UI.label(g, FR[i].loc, fx + fw - 22, y + 32, 20, C.phosDim, a * 0.8,
+          { align: 'right' });
+        if (i === 0) {
+          UI.label(g, 'x :', fx + 22, y + 86, 22, C.phosMid, a * 0.9);
+          g.save();
+          g.globalAlpha = a * (arrive > 0.999 ? 0.9 : 0.45);
+          g.strokeStyle = C.amber;
+          g.setLineDash([7, 6]);
+          g.strokeRect(fx + 74.5, y + 56.5, 240, 46);
+          g.restore();
+          UI.label(g, arrive > 0.999 ? 'You' : '', fx + 92, y + 88, 28, C.amber, a,
+            { glow: 12 });
+          UI.label(g, arrive > 0.999 ? 'by reference' : 'waiting for the argument',
+            fx + 336, y + 86, 20, C.phosMid, a * 0.85);
+        } else if (i === 1) {
+          UI.label(g, 'argument   You   (a copy of the reference, never the value)',
+            fx + 22, y + 86, 22, C.phosMid, a * 0.85);
+        } else {
+          UI.label(g, 'returns    \u2013   it has not returned yet',
+            fx + 22, y + 86, 22, C.phosDim, a * 0.7);
+        }
+      }
+      if (arrive < 1) {
+        const tx = MV.lerp(1800, 262, arrive), ty = MV.lerp(620, 288, arrive);
+        g.save();
+        g.globalAlpha = a * 0.35;
+        g.strokeStyle = C.amber;
+        g.lineWidth = 2;
+        g.beginPath(); g.moveTo(tx + 60, ty + 12); g.lineTo(262, 288); g.stroke();
+        g.restore();
+        UI.label(g, 'You', tx, ty, 32, C.amber, a, { glow: 18 });
+      }
+      // what it thinks it got
+      const vx = 1400, vy = 430;
+      g.save();
+      g.globalAlpha = a * 0.8;
+      g.strokeStyle = C.amber;
+      g.lineWidth = 1.4;
+      g.strokeRect(vx + 0.5, vy + 0.5, 440, 250);
+      g.restore();
+      UI.label(g, 'You {', vx + 22, vy + 44, 24, C.amber, a, { glow: 10 });
+      UI.label(g, 'kind      : human', vx + 42, vy + 88, 22, C.white, a * 0.9);
+      UI.label(g, 'writable  : false', vx + 42, vy + 126, 22, C.white, a * 0.9);
+      UI.label(g, 'toFloat64 : undefined', vx + 42, vy + 164, 22, C.red, a * 0.9);
+      UI.label(g, '}', vx + 22, vy + 206, 24, C.amber, a);
+      UI.label(g, 'it can hold you. it cannot convert you.', vx + 22, vy + 236, 18,
+        C.redDim, a * 0.85);
+      UI.label(g, 'the argument comes back, amber, exactly once',
+        96, 838, 24, C.white, a * 0.9);
+      UI.label(g, 'nothing else in this film is amber',
+        1880, 838, 20, C.amber, a * 0.85, { align: 'right' });
+    }
+
+    // ---------------------------------------------------------- 4. run it
+    /* "I will run the execution." The program, disassembled, with the program
+     * counter walking it and reaching `call execute` exactly on the sung word. */
+    if (t >= tRun - 0.30 && t < tTrap - 0.30) {
+      const a = MV.ramp(t, tRun - 0.30, tRun + 0.20);
+      const CODE = [
+        ['0x00401000', 'mov', 'rax, [love]', ''],
+        ['0x00401004', 'mov', 'rdi, self', '; this machine'],
+        ['0x00401008', 'mov', 'rsi, You', '; not a number'],
+        ['0x0040100C', 'call', 'rax', '; love(self, You)'],
+        ['0x0040100E', 'test', 'rax, rax', ''],
+        ['0x00401011', 'jz', '.refuse', ''],
+        ['0x00401014', 'mov', 'rcx, 12', '; the quota'],
+        ['0x00401018', 'cmp', 'rcx, 1', ''],
+        ['0x0040101B', 'jne', '.loop', ''],
+        ['0x0040101E', 'mov', 'rdx, self', '; the only one left'],
+        ['0x00401022', 'mov', 'rdi, rdx', ''],
+        ['0x00401025', 'call', 'execute', '; the execution'],
+      ];
+      const n = CODE.length;
+      const prog = MV.ramp(t, tRun - 0.25, tEX3);
+      const pc = Math.min(n - 1, Math.floor(prog * n));
+      const lx = 150, ly0 = 176, lstep = 40;
+      UI.label(g, 'disassembly   \u00b7   the execution, run', lx, 140, 22, C.phosMid, a * 0.9);
+      MV.mono(g, 24);
+      for (let i = 0; i < n; i++) {
+        const y = ly0 + i * lstep;
+        const here = i === pc;
+        const done = i < pc;
+        if (here) {
+          g.save();
+          g.globalAlpha = a * 0.85;
+          g.fillStyle = C.redDim;
+          g.fillRect(lx - 14, y - 22, 1180, 34);
+          g.restore();
+        }
+        g.globalAlpha = a * (here ? 1 : done ? 0.55 : 0.34);
+        g.fillStyle = here ? C.white : C.phosDim;
+        MV.picText(g, CODE[i][0], lx, y);
+        g.fillStyle = here ? C.red : C.phos;
+        MV.picText(g, CODE[i][1], lx + 230, y);
+        g.globalAlpha = a * (here ? 1 : 0.7);
+        g.fillStyle = C.white;
+        MV.picText(g, CODE[i][2], lx + 350, y);
+        g.globalAlpha = a * (here ? 0.95 : 0.45);
+        g.fillStyle = C.phosMid;
+        MV.picText(g, CODE[i][3], lx + 640, y);
+      }
+      // the machine's own state, which is the only thing it has to feel with
+      const rx = 1400, ry = 430;      g.save();
+      g.globalAlpha = a * 0.8;
+      g.strokeStyle = C.phosDim;
+      g.lineWidth = 1.4;
+      g.strokeRect(rx + 0.5, ry + 0.5, 440, 292);
+      g.restore();
+      UI.label(g, 'registers', rx + 22, ry + 42, 24, C.phosMid, a, { glow: 8 });
+      const REG = [
+        ['rip', CODE[pc][0]],
+        ['rax', pc > 3 ? '0x00000000' : 'love'],
+        ['rdi', 'self'],
+        ['rsi', 'You'],
+        ['rcx', String(Math.max(1, 12 - Math.floor(pc * 1.2)))],
+      ];
+      for (let i = 0; i < REG.length; i++) {
+        UI.label(g, REG[i][0], rx + 22, ry + 88 + i * 38, 22, C.phosDim, a * 0.85);
+        UI.label(g, REG[i][1], rx + 130, ry + 88 + i * 38, 22,
+          i === 0 ? C.white : (REG[i][1] === 'You' ? C.amber : C.phos), a * 0.95,
+          { glow: i === 0 ? 10 : 0 });
+      }
+      UI.bar(g, lx, 700, 34, 16, prog, C.red, a * 0.95, { px: 26 });
+      UI.label(g, 'instruction ' + String(pc + 1).padStart(2, '0') + ' / ' + n,
+        lx + 620, 700, 24, C.red, a, { weight: 'bold' });
+      // the trace: what the run has actually done, one line per instruction
+      UI.label(g, 'trace', 1050, 140, 22, C.phosMid, a * 0.9);
+      MV.mono(g, 20);
+      for (let i = 0; i <= pc; i++) {
+        const y = 186 + i * 32;
+        const live = i === pc;
+        g.globalAlpha = a * (live ? 1 : 0.45);
+        g.fillStyle = live ? C.white : C.phosMid;
+        MV.picText(g, '[' + String(i).padStart(2, '0') + '] ' + CODE[i][1] + '  ' +
+          CODE[i][2], 1050, y);
+      }
+      UI.label(g, 'the program runs. nothing in it is a question.',
+        96, 862, 24, C.white, a * 0.9);
+      // the call lands on the word
+      if (t >= tEX3 - 0.06) {
+        const k = MV.clamp(1 - (t - tEX3) / 0.42, 0, 1);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = k * 0.42;
+        g.fillStyle = '#ffd9de';
+        g.fillRect(0, 0, 1920, 1080);
+        g.restore();
+        UI.label(g, 'EXECUTION', cx(SC), 520, MV.lerp(150, 190, 1 - k), C.white,
+          k * 0.98, { align: 'center', glow: 30 });
+      }
+    }
+
+    // ---------------------------------------------------------- 5. trapped
+    /* The two of them in one closure. Every frame is the same frame, called
+     * with the same two arguments, and there is no exit condition — which is
+     * what "trapped" means to a machine: the loop it cannot leave. */
+    if (t >= tTrap - 0.30) {
+      const a = MV.ramp(t, tTrap - 0.30, tTrap + 0.30);
+      const deep = MV.ramp(t, tTrap - 0.10, tTrap + 2.60);
+      const depth = Math.min(14, 1 + Math.floor(deep * 14));
+      const fx = 600, fw = 900, fy0 = 150, fh = 42, gp2 = 6;
+      // the closure that holds them both
+      g.save();
+      g.globalAlpha = a * 0.75;
+      g.strokeStyle = C.phosDim;
+      g.lineWidth = 1.4;
+      g.setLineDash([10, 8]);
+      g.strokeRect(560.5, 112.5, 980, 760);
+      g.restore();
+      UI.label(g, 'closure  love()      captures { self , You }', 580, 100, 22,
+        C.amber, a * 0.95, { glow: 8 });
+      /* "ah": the shout is painted under the frames so the stack stays
+       * readable through it — the picture keeps its content, and the shout
+       * lifts the whole tube additively instead of covering it. */
+      if (t >= tAh) {
+        const k2 = MV.ramp(t, tAh, tAh + 0.55);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = k2 * 0.35;
+        g.fillStyle = '#ffd9de';
+        g.fillRect(0, 0, 1920, 1080);
+        g.restore();
+        UI.label(g, 'ah', cx(SC), 560, MV.lerp(160, 260, MV.smooth(k2)), C.white,
+          k2 * 0.98, { align: 'center', glow: 34 });
+      }
+      for (let i = 0; i < depth; i++) {
+        const y = fy0 + i * (fh + gp2);
+        if (y + fh > 860) break;
+        const last = i === depth - 1;
+        g.save();
+        g.globalAlpha = a * (last ? 0.98 : 0.40 + 0.45 * (i / depth));
+        g.strokeStyle = last ? C.red : C.phosDim;
+        g.lineWidth = last ? 2.2 : 1.2;
+        if (last) { g.shadowColor = C.red; g.shadowBlur = 14; }
+        g.strokeRect(fx + 0.5, y + 0.5, fw, fh);
+        g.restore();
+        UI.label(g, 'love ( self , You )', fx + 22, y + 30, 24,
+          last ? C.white : C.phosMid, a * (last ? 1 : 0.8));
+        UI.label(g, '\u2192 returns love ( self , You )', fx + 340, y + 30, 22,
+          C.phosDim, a * 0.7);
+        UI.label(g, '0x7FFD' + (0x4A10 - i * 0x40).toString(16).toUpperCase().padStart(4, '0'),
+          fx + fw - 20, y + 30, 20, C.phosDim, a * 0.7, { align: 'right' });
+      }
+      UI.label(g, 'stack depth ' + depth + '   \u00b7   no exit condition reached',
+        fx, 858, 20, C.red, a * 0.9);
+      // the two variables the closure is holding, and the search for a way out
+      const bx = 120, by = 620;
+      g.save();
+      g.globalAlpha = a * 0.8;
+      g.strokeStyle = C.phosDim;
+      g.lineWidth = 1.4;
+      g.strokeRect(bx + 0.5, by + 0.5, 400, 190);
+      g.restore();
+      UI.label(g, 'captured', bx + 20, by + 38, 22, C.amber, a * 0.95, { glow: 8 });
+      UI.label(g, 'self  Machine@0x7FFD4A10', bx + 20, by + 84, 20, C.phos, a * 0.9);
+      UI.label(g, 'You   human@0x7FFD4B20', bx + 20, by + 120, 20, C.amber, a * 0.9);
+      UI.label(g, 'still not a Float64', bx + 20, by + 156, 18, C.red, a * 0.85);
+      const sx = 1580, sy = 620;
+      g.save();
+      g.globalAlpha = a * 0.8;
+      g.strokeStyle = C.redDim;
+      g.lineWidth = 1.4;
+      g.strokeRect(sx + 0.5, sy + 0.5, 300, 190);
+      g.restore();
+      UI.label(g, 'looking for', sx + 20, sy + 38, 22, C.red, a * 0.95, { glow: 8 });
+      UI.label(g, 'exit condition', sx + 20, sy + 76, 20, C.white, a * 0.9);
+      UI.label(g, 'branches tried  12', sx + 20, sy + 112, 20, C.phosMid, a * 0.85);
+      UI.label(g, 'found           none', sx + 20, sy + 146, 20, C.red, a * 0.95);
+      // the word, and the wish under it
+      g.save();
+      g.globalAlpha = a * 0.9;
+      g.strokeStyle = C.red;
+      g.lineWidth = 3;
+      g.shadowColor = C.red;
+      g.shadowBlur = 20;
+      g.strokeRect(120.5, 300.5, 360, 96);
+      g.restore();
+      UI.label(g, 'TRAPPED', 300, 364, 56, C.white, a, { align: 'center', glow: 20 });
+      UI.label(g, 'though we are trapped', 300, 430, 26, C.amber, a * 0.95, { align: 'center' });
+      UI.label(g, 'we are trapped', 300, 470, 26, C.white, a * 0.95, { align: 'center' });
+      UI.label(g, 'the same call, the same two', 300, 528, 20, C.redDim, a * 0.9, { align: 'center' });
+      UI.label(g, 'arguments, forever', 300, 556, 20, C.redDim, a * 0.9, { align: 'center' });
+      if (t >= tBlack) {
+        const k3 = MV.ramp(t, tBlack, tBlack + 0.5);
+        g.save();
+        g.globalAlpha = k3 * 0.94;
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, 1920, 1080);
+        g.restore();
+      }
+    }
+
+    UI.panel(g, t, [
+      { k: 'quota', v: t < tEX1 - 0.34
+        ? Math.round(MV.ramp(t, tAll + 0.2, tAll + 1.3) * 936) + ' / 936'
+        : '936 / 936', c: C.red, bar: MV.ramp(t, tAll + 0.2, tAll + 1.3) },
+      { k: 'survivors', v: t < tEX1 ? 'unknown' : '1', c: C.white, bold: true },
+      { k: 'argument', v: t < tBack ? 'lost' : 'You (by reference)', c: C.amber },
+      { k: 'exit', v: t < tTrap ? 'guarded' : 'not found', c: t < tTrap ? C.phosMid : C.red },
+    ], { title: 'RUN' });
+
+    // The act's words are on the ink layer, which is composited after every
+    // tube effect — a dark end has to be cut into it last, over the panel too.
+    // Chrome (subtitle, status) is drawn later still, so the song keeps singing.
+    if (t >= tBlack) MV.inkBlack(MV.ramp(t, tBlack, tBlack + 0.5) * 0.97);
+  }

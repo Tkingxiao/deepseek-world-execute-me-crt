@@ -1,0 +1,13 @@
+{
+  "name": "crt-anime-mv-skill",
+  "owner": {
+    "name": "MV Studio"
+  },
+  "plugins": [
+    {
+      "name": "crt-anime-mv",
+      "source": "./",
+      "description": "Beat-synced anime MV rendered as a CRT terminal, via Canvas 2D or HyperFrames."
+    }
+  ]
+}

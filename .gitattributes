@@ -1,0 +1,23 @@
+# Normalise line endings for everyone who clones this repository.
+#
+# Without this, a Windows checkout with core.autocrlf=true rewrites every file to
+# CRLF, so the first commit made on Windows and the first commit made on Linux
+# differ in every single line. This project is text-only, so one rule covers it.
+#
+# Binary assets are not tracked here (see .gitignore), but the rule is kept so a
+# future contributor adding a diagram does not corrupt it.
+* text=auto eol=lf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.mp3  binary
+*.mp4  binary
+*.wav  binary
+
+# Windows-only helpers that must keep CRLF to run
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

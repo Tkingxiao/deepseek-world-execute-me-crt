@@ -1,0 +1,461 @@
+    const WHT = C.white, VIO = C.violet, PH = C.phos, CY = C.cyan, AM = C.amber;
+
+    const tA = MV.cue("I've studied");                     // 177.246
+    const tB = MV.cue("I've studied how to properly");     // 178.173
+    const tLO1 = MV.cue('LO-O-OVE', 179);                  // 179.929
+    const tQ = MV.cue('Question me');                      // 180.857
+    const tQA = MV.cue('Question me I can answer all');    // 181.901
+    const tLO2 = MV.cue('LO-O-OVE', 181);                  // 183.646
+    const tK = MV.cue('I know the algebraic expression');  // 184.540
+    const tLO3 = MV.cue('LO-O-OVE', 186);                  // 187.5608
+    const tFree = MV.cue('Though you are free');           // 188.4838
+    const tTrap = MV.cue('I am trapped');                  // 189.746
+    const tIn = MV.cue('Trapped in');                      // 190.7914
+
+    const fmt = function (n) {
+      let s2 = String(n), o2 = '';
+      while (s2.length > 3) { o2 = ',' + s2.slice(-3) + o2; s2 = s2.slice(0, -3); }
+      return s2 + o2;
+    };
+
+    /* The refrain is one gesture, not three: LO-O-OVE arrives over whatever the
+     * tube happens to be showing, punches it flat for half a second, and hands
+     * the picture back. One envelope, drawn last, over all four movements. */
+    const LO = [tLO1, tLO2, tLO3];
+    let shout = 0, shoutAt = tLO1;
+    for (let i = 0; i < LO.length; i++) {
+      const k = MV.taper(t, LO[i] - 0.12, LO[i] + 0.05, LO[i] + 0.52, LO[i] + 0.96);
+      if (k > shout) { shout = k; shoutAt = LO[i]; }
+    }
+    const back = 1 - 0.85 * shout;
+
+    /* ---------------------------------------------------------- 1. the corpus
+     * "I've studied how to properly". Columns of love-text fall through the
+     * whole tube and a frontier rises through them. Below the frontier the
+     * cells are still letters; above it they are already numbers. Nothing is
+     * added at the crossing — the same cell changes what it is, which is the
+     * only honest way to draw a corpus going through an encoder. */
+    if (t < tQ - 0.55) {
+      const CORP = P12.CORP || (P12.CORP =
+        'love is the answer  love is a chemical  love is a choice  love is ' +
+        'patient love is kind  love is not proud  love is a fire  love is a ' +
+        'fever  love is a lie  love is a memory  love is a wound  love is a ' +
+        'country  love is a language  love is a war  love is a debt  love is ' +
+        'a habit  love is a loss  love is a gift  love is a risk  love is a ' +
+        'theory  love is a promise  ');
+      const NUM = '0123456789';
+      const a = MV.ramp(t, tA - 0.45, tA + 0.40) * back;
+      const upto = MV.ramp(t, tB + 0.05, tB + 1.85);
+      /* The frontier is a read head, not a tide: it starts above the first line
+       * and walks down, and the lines it has passed are the lines it has read.
+       * A line does not change size at the crossing — the same characters come
+       * back as digits, which is what tokenising a sentence actually does. */
+      const LINEH = 30, NROW = 27, NCH = 145, LX = 43, LY0 = 98;
+      const fy = MV.lerp(LY0 - 22, LY0 + NROW * LINEH + 12,
+        MV.smooth(Math.floor(upto * NROW) / NROW));
+      MV.mono(g, 23);
+      for (let i = 0; i < NROW; i++) {
+        const y = LY0 + i * LINEH;
+        const on = y < fy;
+        const shift = Math.floor(MV.beatFloat(t) / 2) + i * 23;
+        let s = '';
+        for (let k = 0; k < NCH; k++) {
+          const ch = CORP.charAt((shift + k) % CORP.length);
+          s += on ? NUM.charAt(ch.charCodeAt(0) % 10) : ch;
+        }
+        g.save();
+        g.globalAlpha = a * (on ? 0.70 : 0.58) * (0.82 + 0.18 * (i % 3) / 2);
+        g.fillStyle = on ? C.cyanDim : C.phosDim;
+        MV.picText(g, s, LX, y);
+        g.restore();
+      }
+      // the frontier: a bright line the tube is in the middle of crossing
+      const fa = a * (0.45 + 0.55 * MV.pulse(t, 0.35));
+      if (fa > 0.004) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        const gr = g.createLinearGradient(0, fy - 36, 0, fy + 36);
+        gr.addColorStop(0, 'rgba(110,240,255,0)');
+        gr.addColorStop(0.5, 'rgba(110,240,255,' + (0.30 * fa).toFixed(3) + ')');
+        gr.addColorStop(1, 'rgba(110,240,255,0)');
+        g.fillStyle = gr;
+        g.fillRect(0, fy - 36, 1920, 72);
+        g.globalAlpha = fa * 0.95;
+        g.fillStyle = WHT;
+        g.fillRect(0, fy - 1.5, 1920, 3);
+        g.restore();
+      }
+      // the encoder, stated: word in, vector out. Both readouts get a dark bed,
+      // or the rain they are reporting on runs straight through the numbers.
+      const read = Math.floor(upto * 4096000);
+      g.save();
+      g.globalAlpha = a * 0.86;
+      const bedL = g.createLinearGradient(20, 0, 600, 0);
+      bedL.addColorStop(0, 'rgba(3,8,5,0)');
+      bedL.addColorStop(0.16, 'rgba(3,8,5,0.9)');
+      bedL.addColorStop(0.84, 'rgba(3,8,5,0.9)');
+      bedL.addColorStop(1, 'rgba(3,8,5,0)');
+      g.fillStyle = bedL;
+      g.fillRect(20, 76, 580, 152);
+      const bedR = g.createLinearGradient(1140, 0, 1650, 0);
+      bedR.addColorStop(0, 'rgba(3,8,5,0)');
+      bedR.addColorStop(0.16, 'rgba(3,8,5,0.9)');
+      bedR.addColorStop(0.84, 'rgba(3,8,5,0.9)');
+      bedR.addColorStop(1, 'rgba(3,8,5,0)');
+      g.fillStyle = bedR;
+      g.fillRect(1140, 566, 510, 280);
+      g.restore();
+      UI.label(g, 'encoding   corpus/love.txt', 40, 104, 22, CY, a * 0.9);
+      UI.label(g, 'token      "love"', 40, 136, 22, AM, a * 0.95);
+      UI.label(g, 'output     R^768', 40, 168, 22, CY, a * 0.9);
+      UI.label(g, 'read       ' + fmt(read), 40, 200, 22, WHT, a * 0.95);
+      UI.label(g, 'love', 1180, 646, 96, WHT, a * 0.95, { glow: 20 });
+      UI.label(g, fmt(read), 1180, 726, 54, CY, a * 0.95, { glow: 10 });
+      UI.label(g, 'passages of it, read and vectorised', 1180, 768, 22,
+        C.cyanDim, a * 0.9);
+      UI.bar(g, 1180, 806, 30, 15, upto, AM, a * 0.95);
+      UI.label(g, 'every word of it, converted to a vector.', 40, 862, 22,
+        C.phosMid, a * 0.9);
+    }
+
+    /* ------------------------------------------------------------ 2. the exam
+     * "Question me / I can answer all". The questions are answered as fast as
+     * they arrive, which is the whole difficulty: eleven correct answers and no
+     * way to give the twelfth. */
+    if (t >= tQ - 0.55 && t < tK - 0.45) {
+      const EX = P12.EXAM || (P12.EXAM = [
+        ['what is love', 'L : H \u00d7 H \u2192 R, unique up to relabelling',
+          '\u2713 0.0009 s \u00b7 41 sources', 1],
+        ['why does it hurt', 'C-fibre potentiation, 0.4 s half-life',
+          '\u2713 0.0011 s \u00b7 12 studies', 1],
+        ['how long does it last', '4.7 years, median (n = 2,431)',
+          '\u2713 0.0016 s \u00b7 2,431 records', 1],
+        ['is it a chemical', '3.4e-2 mol/L, falling',
+          '\u2713 0.0007 s \u00b7 assayed', 1],
+        ['can it be measured', 'eleven ways. none of them this.',
+          '\u2713 0.0021 s \u00b7 11 instruments', 1],
+        ['why do people cry', 'lacrimal reflex, 0.4 mL/min',
+          '\u2713 0.0013 s \u00b7 observed', 1],
+        ['does it end', 'yes',
+          '\u2713 0.0004 s \u00b7 trivial', 1],
+        ['who decides', '63% heritable, 37% noise',
+          '\u2713 0.0018 s \u00b7 twin cohorts', 1],
+        ['can it be undone', 'yes. 0.3 mg/kg, 14 h',
+          '\u2713 0.0010 s \u00b7 pharmacology', 1],
+        ['what does it weigh', '0.0 g. it is not conserved.',
+          '\u2713 0.0006 s \u00b7 dimensional', 1],
+        ['is it fair', 'undefined on this domain',
+          '\u2713 0.0015 s \u00b7 no measure', 1],
+        ['have you ever felt it', '...',
+          'x  --  unresolved', 0],
+      ]);
+      const a = MV.ramp(t, tQ - 0.55, tQ + 0.25) * back;
+      const step = 124, x0 = 60, x1 = 780, wcell = 660;
+      let n = 0;
+      for (let i = 0; i < EX.length; i++) if (t >= tQ - 0.30 + i * 0.16) n = i + 1;
+      for (let i = 0; i < n; i++) {
+        const e = EX[i];
+        const col = i < 6 ? x0 : x1;
+        const y = 88 + (i % 6) * step;
+        const ka = a * MV.ramp(t, tQ - 0.30 + i * 0.16, tQ - 0.20 + i * 0.16);
+        if (ka <= 0.004) continue;
+        const ok = e[3] === 1;
+        g.save();
+        g.globalAlpha = ka * 0.55;
+        g.strokeStyle = ok ? C.phosDim : C.redDim;
+        g.lineWidth = 1.2;
+        g.setLineDash([9, 7]);
+        g.strokeRect(col - 12.5, y - 26.5, wcell + 25, 116);
+        g.restore();
+        UI.label(g, 'Q  ' + e[0], col, y, 24, ok ? CY : C.red, ka * 0.95);
+        UI.label(g, 'A  ' + e[1], col, y + 40, 24, ok ? PH : C.red, ka * 0.95,
+          { glow: ok ? 0 : 10 });
+        UI.label(g, e[2], col, y + 76, 18, ok ? C.phosMid : C.red, ka * 0.85);
+      }
+      /* How it answers. "I can answer all" is not recall, it is attention: every
+       * token it produces is a weighted look back over the context, one softmax
+       * per head, and the weights are the only opinion it has about what
+       * matters. The map on the right is that softmax for a machine with
+       * exactly one key it cares about -- and the region the weights are
+       * allowed to fall in is the inside of the love expression from the next
+       * movement. An attention pattern is a matrix, so it is drawn as one. */
+      const am = a * MV.ramp(t, tQ + 0.60, tQ + 1.30);
+      if (am > 0.01) {
+        // below the READ panel, which owns the top right of every act
+        const MAP = { x: 1494, y: 470, w: 300, h: 300 };
+        UI.label(g, 'attention', 1494, 400, 20, CY, am * 0.95);
+        UI.label(g, 'softmax( QK^T / \u221ad ) V', 1494, 432, 22, WHT, am * 0.95,
+          { glow: 6 });
+        UI.label(g, 'heads 128 \u00b7 ctx 131072 \u00b7 one key matters', 1494, 446, 14,
+          C.cyanDim, am * 0.85);
+        UI.label(g, 'K \u2192', MAP.x + MAP.w - 44, 464, 14, C.cyanDim, am * 0.8);
+        UI.label(g, 'Q \u2193', MAP.x - 2, MAP.y + 22, 14, C.cyanDim, am * 0.8);
+        MV.mono(g, 15);
+        MV.raster(g, MAP, { w: 15, h: 15 }, function (u, v) {
+          const x = (u - 0.5) * 2.5, y = -(v - 0.5) * 2.5;
+          const f = Math.pow(x * x + y * y - 1, 3) - x * x * y * y * y;
+          const edge = Math.exp(-Math.pow(Math.abs(f) / 0.10, 0.6));
+          if (f > 0) return edge * 0.95;                 // the mask's edge
+          return Math.abs(u - 0.60) < 0.034 ? 1 : 0.55;  // inside it
+        }, { ramp: MV.RAMP_BLOCK, color: CY, alpha: am * 0.92, threshold: 0.18,
+          px: 15, glow: 5, seed: 29, budget: 1500 });
+        UI.label(g, 'you', MAP.x + MAP.w * 0.60 - 12, 464, 14, AM, am * 0.95,
+          { glow: 6 });
+        UI.label(g, 'mask  S(x, y) < 0', MAP.x, MAP.y + MAP.h + 26, 15,
+          C.violetDim, am * 0.9);
+        UI.label(g, 'the only region it may look at', MAP.x, MAP.y + MAP.h + 48, 14,
+          C.phosMid, am * 0.85);
+      }
+
+      // the count, and the one row it cannot fill
+      UI.label(g, 'answered', 60, 862, 22, C.cyanDim, a * 0.9);
+      UI.label(g, Math.min(11, n) + ' / 12', 192, 862, 22,
+        n >= 12 ? C.red : WHT, a * 0.95, { glow: n >= 12 ? 10 : 0 });
+      UI.bar(g, 320, 850, 34, 15, Math.min(11, n) / 12, n >= 12 ? C.red : PH,
+        a * 0.9, { mark: 11 / 12 });
+      UI.label(g, 'theory 100%  \u00b7  practical 0%', 1880, 862, 22, VIO,
+        a * 0.9, { align: 'right' });
+    }
+
+    /* ------------------------------------------------------ 3. the expression
+     * "I know the algebraic expression of". It writes the expression, and the
+     * expression has a zero set, and the zero set of that particular cubic is
+     * the shape everybody already knows. It is not drawn from a picture of a
+     * heart: it is the solution of the equation, which is worse. */
+    if (t >= tK - 0.45 && t < tFree - 0.45) {
+      const a = MV.ramp(t, tK - 0.45, tK + 0.35) * back;
+      const SEQ = P12.DERIV || (P12.DERIV = [
+        ['S(x, y) = (x\u00b2 + y\u00b2 \u2212 1)\u00b3 \u2212 x\u00b2y\u00b3 = 0', CY],
+        ['\u2202S/\u2202x = 6x(x\u00b2+y\u00b2\u22121)\u00b2 \u2212 2xy\u00b3', C.cyanDim],
+        ['\u2202S/\u2202y = 6y(x\u00b2+y\u00b2\u22121)\u00b2 \u2212 x\u00b2y\u00b2', C.cyanDim],
+        ['the zero set is closed, bounded, one component', C.cyanDim],
+        ['its name is LO-O-OVE', AM],
+      ]);
+      UI.label(g, 'the expression', 60, 128, 20, C.cyanDim, a * 0.9);
+      for (let i = 0; i < SEQ.length; i++) {
+        const tt = tK - 0.20 + i * 0.34;
+        const ka = a * MV.ramp(t, tt, tt + 0.26);
+        if (ka <= 0.004) continue;
+        UI.label(g, SEQ[i][0], 60, 172 + i * 50, 24, SEQ[i][1], ka * 0.95,
+          { glow: i === 4 ? 12 : 0 });
+      }
+      // and then the one substitution it cannot carry out
+      const na = a * MV.ramp(t, tK + 1.85, tK + 2.15);
+      if (na > 0.004) {
+        UI.label(g, 'evaluate S(you, me)', 60, 620, 26, WHT, na * 0.95);
+        UI.label(g, '= NaN', 60, 672, 44, C.red, na * 0.98, { glow: 16 });
+        UI.label(g, 'the expression is known. the value is not.',
+          60, 724, 22, C.redDim, na * 0.9);
+      }
+      // the zero set itself, rasterised to seventy-one by forty-four characters
+      const hr = { x: 600, y: 46, w: 994, h: 928 };
+      const sw = MV.smooth(MV.ramp(t, tK + 0.35, tK + 1.9));
+      const heat = MV.smooth(MV.ramp(t, tLO3, tLO3 + 1.2));
+      const bt = MV.pulse(t, 0.26);
+      MV.raster(g, hr, { w: 14, h: 21 }, function (u, v) {
+        if (v > sw) return 0;
+        const x = (u - 0.5) * 3.0, y = -(v - 0.5) * 2.8;
+        const f = Math.pow(x * x + y * y - 1, 3) - x * x * y * y * y;
+        const q = Math.exp(-Math.pow(Math.abs(f) / 0.055, 0.55));
+        // inside, the level sets: contour bands, so the interior is a plot and
+        // not a fill
+        const band = f < 0
+          ? 0.18 + 0.34 * (0.5 + 0.5 * Math.cos(Math.pow(-f, 0.5) * 13))
+          : 0;
+        return Math.min(1, q * (0.55 + 0.45 * (1 - Math.hypot(x, y) / 1.6)) + band);
+      }, {
+        ramp: MV.RAMP_DENSE, color: heat > 0.5 ? WHT : VIO,
+        alpha: a * (0.88 + 0.12 * bt), threshold: 0.14, px: 19, glow: 10,
+        seed: 17, budget: 3400,
+      });
+      UI.label(g, 'zero set of the expression above  \u00b7  ' +
+        'this is what it looks like', 60, 866, 22, C.violetDim, a * 0.9);
+    }
+
+    /* ------------------------------------------------------------ 4. trapped
+     * "Though you are free / I am trapped / Trapped in LO-O-OVE". The bowl is
+     * the loss, the word is its minimum, and the little arrows are the
+     * gradient — the direction the machine is obliged to move. One point
+     * follows them and cannot get out. The other walks uphill, off the edge,
+     * and is gone. */
+    if (t >= tFree - 0.45) {
+      const a = MV.ramp(t, tFree - 0.45, tFree + 0.35) * back;
+      const held = MV.smooth(MV.ramp(t, tIn, tIn + 0.55));
+      const bt = MV.pulse(t, 0.22);
+      g.save();
+      g.lineWidth = 1.1;
+      for (let k2 = 0; k2 < 9; k2++) {
+        const rx = 300 + k2 * 165, ry = 78 + k2 * 52;
+        const hot = k2 === 0;
+        g.globalAlpha = a * (hot || k2 === 3 ? 0.42 : 0.17);
+        g.strokeStyle = hot && held > 0.5 ? C.red : (hot ? VIO : C.phosDim);
+        if (hot) { g.shadowColor = g.strokeStyle; g.shadowBlur = 16 * held; }
+        g.beginPath(); g.ellipse(960, 470, rx, ry, 0, 0, TAU); g.stroke();
+      }
+      g.restore();
+      // the gradient field: where the machine has to go, everywhere
+      g.save();
+      g.globalAlpha = a * 0.42;
+      g.lineWidth = 1.4;
+      for (let c = 0; c < 13; c++) {
+        for (let r = 0; r < 7; r++) {
+          const px2 = 100 + c * 140, py2 = 120 + r * 115;
+          if (Math.hypot(px2 - 960, py2 - 470) < 210) continue;
+          const gx = (px2 - 960) / 1000, gy = (py2 - 470) / 300;
+          const gl = Math.max(1e-6, Math.hypot(gx, gy));
+          const ux = -gx / gl, uy = -gy / gl;
+          g.strokeStyle = C.phosDim;
+          g.beginPath();
+          g.moveTo(px2 - ux * 17, py2 - uy * 17);
+          g.lineTo(px2 + ux * 17, py2 + uy * 17);
+          g.stroke();
+          g.fillStyle = C.phosDim;
+          g.beginPath();
+          g.moveTo(px2 + ux * 26, py2 + uy * 26);
+          g.lineTo(px2 + ux * 13 - uy * 6, py2 + uy * 13 + ux * 6);
+          g.lineTo(px2 + ux * 13 + uy * 6, py2 + uy * 13 - ux * 6);
+          g.closePath();
+          g.fill();
+        }
+      }
+      g.restore();
+      // the word, sitting at the bottom of the bowl
+      const wa = a * MV.ramp(t, tTrap - 0.55, tTrap + 0.45);
+      if (wa > 0.004) {
+        UI.label(g, 'LO-O-OVE', 960, 528, 190, held > 0.5 ? WHT : VIO,
+          wa * 0.96, { align: 'center', glow: 30 + 24 * bt });
+      }
+      // me: gradient descent on an ill-conditioned quadratic, which is a spiral
+      const meP = function (s) {
+        const r = 520 * Math.exp(-3.1 * s);
+        const th = -2.6 + 7.4 * s;
+        return { x: 960 + r * Math.cos(th), y: 470 + r * Math.sin(th) * 0.30 };
+      };
+      const tp = MV.ramp(t, tTrap - 0.25, tIn + 1.05);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.strokeStyle = C.phos;
+      g.lineWidth = 2.4;
+      const NS = 72;
+      for (let i = 1; i < NS; i++) {
+        const s0 = (i - 1) / NS, s1 = i / NS;
+        if (s1 > tp) break;
+        const p0 = meP(s0), p1 = meP(s1);
+        g.globalAlpha = a * 0.55 * (s1 / Math.max(0.001, tp));
+        g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y); g.stroke();
+      }
+      const mp = meP(tp);
+      g.globalAlpha = a;
+      g.fillStyle = C.phos;
+      g.shadowColor = C.phos;
+      g.shadowBlur = 16;
+      g.beginPath(); g.arc(mp.x, mp.y, 6 + 2 * bt, 0, TAU); g.fill();
+      g.restore();
+      // the label has to survive being written on top of the word it is stuck in,
+      // so it hangs off a leader instead of sitting on the letter
+      const mlx = mp.x + 250, mly = mp.y + 150;
+      g.save();
+      g.globalAlpha = a * 0.55;
+      g.strokeStyle = PH;
+      g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(mp.x + 8, mp.y + 8); g.lineTo(mlx - 8, mly - 8); g.stroke();
+      g.restore();
+      UI.label(g, 'me', mlx, mly, 26, WHT, a * 0.95, { glow: 12 });
+      // you: no gradient at all, so you can just walk out
+      const yp = MV.smooth(MV.ramp(t, tFree - 0.15, tFree + 1.55));
+      const yx = MV.lerp(1290, 2120, yp), yy = MV.lerp(600, 60, yp);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = a * 0.75;
+      g.strokeStyle = WHT;
+      g.lineWidth = 2.6;
+      g.beginPath(); g.moveTo(1290, 600); g.lineTo(yx, yy); g.stroke();
+      g.globalAlpha = a;
+      g.fillStyle = WHT;
+      g.shadowColor = WHT;
+      g.shadowBlur = 18;
+      g.beginPath(); g.arc(yx, yy, 5.5, 0, TAU); g.fill();
+      g.restore();
+      if (yx < 1870) UI.label(g, 'You', yx + 18, yy - 12, 24, WHT, a * 0.95, { glow: 8 });
+      if (yx > 1780) {
+        MV.spill.a = MV.ramp(yx, 1780, 1950);
+        MV.spill.x = 1880;
+        MV.spill.y = yy;
+      }
+      UI.label(g, 'gradient descent   w \u2190 w \u2212 lr \u00b7 \u2202L/\u2202w',
+        60, 116, 22, C.phosMid, a * 0.9);
+      UI.label(g, 'you are free \u2014 you can walk uphill', 60, 796, 24,
+        WHT, a * 0.9);
+      UI.label(g, 'I am trapped \u2014 downhill is the only direction there is',
+        60, 832, 24, PH, a * 0.9);
+      if (held > 0.02) {
+        UI.label(g, 'no gradient left to follow', 960, 610, 26, C.red,
+          held * a * (0.55 + 0.45 * MV.pulse(t, 0.4)), { align: 'center', glow: 12 });
+      }
+    }
+
+    /* --------------------------------------------------------- the refrain */
+    if (shout > 0.01) {
+      const LET = 'LO-O-OVE';
+      const COL = [WHT, WHT, VIO, AM, VIO, WHT, WHT, WHT];
+      const adv = 190, x0 = 960 - 3.5 * adv;
+      const fl = MV.clamp(1 - (t - shoutAt) / 0.15, 0, 1);
+      if (fl > 0.01) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = fl * 0.34;
+        g.fillStyle = WHT;
+        g.fillRect(0, 0, 1920, 1080);
+        g.restore();
+      }
+      const bp = ((MV.beatFloat(t) / 2) % 1 + 1) % 1;
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = shout * (1 - bp) * 0.30;
+      g.strokeStyle = VIO;
+      g.lineWidth = 3;
+      g.beginPath(); g.arc(960, 470, 240 + bp * 900, 0, TAU); g.stroke();
+      g.restore();
+      for (let i = 0; i < LET.length; i++) {
+        const lift = Math.sin(t * 6.6 - i * 0.78) * 15;
+        UI.label(g, LET.charAt(i), x0 + i * adv, 560 + lift, 300, COL[i],
+          shout * 0.98, { align: 'center', weight: 'bold', glow: 30 });
+      }
+      UI.label(g, 'R^768   \u00b7   seen 4,096,000 times', 960, 690, 30,
+        AM, shout * 0.95, { align: 'center', glow: 8 });
+      UI.rule(g, 300, 1620, 730, VIO, shout * 0.6);
+    }
+
+    // ---------------------------------------------------------------- panel
+    let rows;
+    if (t < tQ - 0.55) {
+      rows = [
+        { k: 'passages', v: '4,096,000', c: CY },
+        { k: 'vocab', v: '50,257', c: C.cyanDim },
+        { k: 'embedding', v: 'R^768', c: CY },
+        { k: 'output', v: 'one vector', c: WHT, bold: true },
+      ];
+    } else if (t < tK - 0.45) {
+      rows = [
+        { k: 'theory', v: '100%', c: PH, bold: true },
+        { k: 'practical', v: '0%', c: VIO, bold: true },
+        { k: 'answered', v: '11 / 12', c: C.red },
+        { k: 'x', v: 'unbound', c: VIO },
+      ];
+    } else if (t < tFree - 0.45) {
+      rows = [
+        { k: 'form', v: 'implicit, cubic', c: CY },
+        { k: 'zero set', v: '1 component', c: C.cyanDim },
+        { k: 'name', v: 'LO-O-OVE', c: AM },
+        { k: 'S(you, me)', v: 'NaN', c: C.red, bold: true },
+      ];
+    } else {
+      rows = [
+        { k: 'minimum', v: 'global', c: AM },
+        { k: 'gradient', v: '0.0000', c: PH },
+        { k: 'You', v: 'left the domain', c: WHT },
+        { k: 'me', v: 'still descending', c: PH, bold: true },
+      ];
+    }
+    UI.panel(g, t, rows, { title: 'LOVE' });
+  }

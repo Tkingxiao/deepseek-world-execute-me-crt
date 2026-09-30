@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------------------
+# Dependencies and virtualenvs
+# ---------------------------------------------------------------------------
+node_modules/
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ---------------------------------------------------------------------------
+# Source material — brought by the user, never committed.
+# The README.md inside each input/ folder IS tracked: the negation has to come
+# after the directory rule, or it is ignored along with it.
+# ---------------------------------------------------------------------------
+input/**
+!input/README.md
+media/
+
+# ---------------------------------------------------------------------------
+# Generated character and math assets, and any raw audio/video.
+# build/ holds decoded PCM, analysis output and preview frames.
+# ---------------------------------------------------------------------------
+assets/
+build/
+render/
+out/
+segments/
+*.mp3
+*.mp4
+*.m4a
+*.wav
+*.aac
+*.flac
+*.lrc
+*.ts
+
+# ---------------------------------------------------------------------------
+# Images: these are always either source art or render output in this project,
+# and the repository is deliberately text-only. Add a negation if you ever need
+# to commit a diagram.
+# ---------------------------------------------------------------------------
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# ---------------------------------------------------------------------------
+# Generation 2's workshop output. The SCRIPTS in work/ are tracked on purpose —
+# see gen2-crt-mv/work/README.md — so these rules are deliberately narrow.
+# ---------------------------------------------------------------------------
+work/audio/
+work/data/
+work/shots/
+work/render/
+work/out/
+work/sheet/
+work/xcheck/
+work/*.log
+work/*.json
+work/*.bak
+work/psnr.txt
+
+# ---------------------------------------------------------------------------
+# Generated data, rebuilt by tools/analyze.py + tools/gloss.py (+ gen-data.cjs)
+# ---------------------------------------------------------------------------
+src/data/
+data/timeline.json
+data/beat-energy.json
+src/data.js
+src/mv-sheet-meta.js
+
+# ---------------------------------------------------------------------------
+# OS and editor
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "crt-anime-mv",
+  "version": "1.1.0",
+  "description": "Build a beat-synced 1080p anime music video whose whole world is an old CRT phosphor terminal, rendered with Canvas 2D or HyperFrames.",
+  "author": {
+    "name": "MV Studio"
+  },
+  "license": "MIT",
+  "keywords": [
+    "agent-skill",
+    "music-video",
+    "crt",
+    "terminal",
+    "anime",
+    "beat-sync",
+    "lyrics",
+    "canvas",
+    "hyperframes",
+    "gsap",
+    "ascii",
+    "ascii-art",
+    "terminal-art"
+  ],
+  "skills": [
+    "./"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "CRT Anime Music Video",
+        "shortDescription": "Beat-synced anime MV rendered as a CRT terminal.",
+        "longDescription": "Produces a 1920x1080 30 fps music video in which the entire visual world is an old CRT terminal: green phosphor code, lyrics rendered as terminal log output, live mathematical diagrams, and an anime character composited out of the glass. The pipeline measures the real tempo and per-beat energy, builds a beat-locked timeline from an LRC file, tints a transparent character cutout into a phosphor palette, keeps text crisp by compositing it after all post-processing, renders frames deterministically in parallel, and verifies the result with objective sync and integrity tests. The same composition can instead be authored as HTML + CSS + GSAP and rendered with the external HyperFrames CLI, whose built-in lint, layout, contrast and motion gates complement this skill's beat-modulation and audio-integrity checks.",
+        "developerName": "MV Studio",
+        "category": "Media"
+      }
+    }
+  }
+}

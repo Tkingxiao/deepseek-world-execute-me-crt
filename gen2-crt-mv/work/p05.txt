@@ -1,0 +1,407 @@
+    const AMB = C.amber;
+    const tEgg = MV.cue("If I'm an eggplant");        // 74.045
+    const tGiveE = MV.cue('Then I will give you my', tEgg);   // 75.422
+    const tNut = MV.cue('NUTRIENTS');                 // 76.959
+    const tTom = MV.cue("If I'm a tomato");           // 77.576
+    const tGiveT = MV.cue('Then I will give you', tTom);      // 79.226
+    const tAnti = MV.cue('ANTIOXIDANTS');             // 80.620
+    const tCat = MV.cue("If I'm a tabby cat");        // 81.351
+    const tGiveC = MV.cue('Then I will purr for your', tCat); // 82.833
+    const tEnjoy = MV.cue('ENJOYMENT');               // 84.268
+    const tGod = MV.cue("If I'm the only god");       // 85.078
+    const tProof = MV.cue("Then you're the proof of my", tGod); // 86.538
+    const tExi = MV.cue('EXISTENCE');                 // 87.922
+
+    /* Amber is the flesh colour and this is the flesh act: the one stretch of
+     * the film where the machine stops describing itself and offers things only
+     * a body has. Each offer takes the whole frame — the figure as large as it
+     * will fit, in characters, because a character drawing of an eggplant is an
+     * eggplant and a field of noise is not — and each offer is played out over
+     * the exact line that promises it: the gesture runs through "then I will
+     * give you my" and lands on the noun. The lyric is in the subjunctive, and
+     * a machine can compute a gift to the last milligram and hand over none of
+     * it, so the goods cross the frame, stop short of the machine, and go out
+     * one by one. Two of the three die in the gap. The third — a number, the
+     * only thing on this list that is not matter — arrives. */
+    const win = function (a, b) {
+      return MV.ramp(t, a, a + 0.28) * (1 - MV.ramp(t, b - 0.28, b));
+    };
+    const aE = win(tEgg, tTom);
+    const aT = win(tTom, tCat);
+    const aC = win(tCat, tGod);
+    const aG = MV.ramp(t, tGod, tGod + 0.30);
+    // the tomato's own molecule stays on screen through the next offer, because
+    // the reaction it is there to show finishes after the word does
+    const aR = MV.ramp(t, tTom, tTom + 0.28) * (1 - MV.ramp(t, tCat + 0.35, tCat + 0.85));
+
+    // the machine, at the right edge and below the horizon, for the whole act:
+    // everything here is offered to it and almost nothing reaches it
+    const chipBox = { x: 1520, y: 560, w: 340, h: 200 };
+    const cf = ART.fit(g, ART.CHIP, chipBox);
+    ART.draw(g, ART.CHIP, cf.x, cf.y, {
+      cw: cf.cw, ch: cf.ch, px: cf.px, color: aG > 0.4 ? C.phos : AMB,
+      alpha: 0.85 * (aE + aT + aC + aG), glow: 6, seed: 41,
+    });
+    const chipMid = chipBox.x + 160, chipTop = chipBox.y;
+
+    // a table of real quantities. The value column is right-aligned so the
+    // magnitudes compare down the page, and the bar is the share of the fruit
+    // that is not water.
+    const table = function (x, y, title, rows, al) {
+      UI.label(g, title, x, y, 20, AMB, al, { glow: 6 });
+      g.save();
+      g.globalAlpha = al * 0.5;
+      g.strokeStyle = AMB; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x + 0.5, y + 12); g.lineTo(x + 640, y + 12); g.stroke();
+      g.restore();
+      for (let i = 0; i < rows.length; i++) {
+        const ry = y + 42 + i * 31;
+        UI.label(g, rows[i][0], x, ry, 16, C.phosMid, al * 0.95);
+        g.save();
+        g.globalAlpha = al * 0.22;
+        g.fillStyle = AMB;
+        g.fillRect(x + 250, ry - 11, 180, 9);
+        g.restore();
+        g.save();
+        g.globalAlpha = al * 0.85;
+        g.fillStyle = AMB;
+        g.fillRect(x + 250, ry - 11, 180 * MV.clamp(rows[i][2], 0, 1), 9);
+        g.restore();
+        UI.label(g, rows[i][1], x + 640, ry, 16, AMB, al, { align: 'right' });
+      }
+    };
+
+    /* The handover. It runs for the length of the line that promises it and
+     * ends on the noun. `land` is the whole argument of the act: with land
+     * false the stream decelerates into the gap short of the machine and goes
+     * out one particle at a time; with land true it arrives, and flashes. */
+    const gift = function (x0, y0, x1, y1, t0, t1, al, land, col) {
+      const fly = MV.smooth(MV.ramp(t, t0, t1));
+      if (fly <= 0) return;
+      const gone = land ? 0 : MV.ramp(t, t1, t1 + 0.45);
+      const stop = land ? 1 : 0.80;
+      for (let i = 0; i < 26; i++) {
+        const q = MV.clamp(fly * 1.22 - i * 0.016, 0, 1);
+        if (q <= 0) continue;
+        const u = MV.smooth(q) * stop;
+        const x = MV.lerp(x0, x1, u);
+        const y = MV.lerp(y0, y1, u) - Math.sin(u * Math.PI) * 84 + ((i % 5) - 2) * 15;
+        let a2 = al * 0.85 * MV.clamp(1 - Math.abs(q - 0.62) * 1.15, 0, 1);
+        if (!land) a2 *= 1 - gone * (0.20 + 0.80 * MV.hash2(i, 2, 5));
+        if (a2 <= 0.012) continue;
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = a2;
+        g.fillStyle = col || AMB;
+        g.beginPath(); g.arc(x, y, 3.6, 0, TAU); g.fill();
+        g.restore();
+      }
+      if (land) {
+        const hit = MV.ramp(t, t1, t1 + 0.30);
+        if (hit > 0 && hit < 1) {
+          g.save();
+          g.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < 3; i++) {
+            const rr = 26 + i * 34 + hit * 60;
+            g.globalAlpha = al * (1 - hit) * (0.5 - i * 0.13);
+            g.strokeStyle = col || AMB;
+            g.lineWidth = 2;
+            g.beginPath(); g.arc(x1, y1, rr, 0, TAU); g.stroke();
+          }
+          g.restore();
+        }
+      }
+    };
+
+    // ---------------------------------------------------------------- eggplant
+    if (aE > 0.01) {
+      const box = { x: 90, y: 150, w: 640, h: 640 };
+      const f = ART.fit(g, ART.EGGPLANT, box);
+      ART.draw(g, ART.EGGPLANT, f.x, f.y, {
+        cw: f.cw, ch: f.ch, px: f.px, color: AMB, alpha: aE * 0.95,
+        wipe: MV.smooth(MV.ramp(t, tEgg, tEgg + 1.0)), glow: 7, seed: 3,
+      });
+      UI.label(g, 'Solanum melongena', f.x, box.y + box.h + 40, 17, C.amberDim, aE * 0.9);
+      table(760, 216, 'WHAT I WOULD GIVE YOU', [
+        ['energy', '25 kcal / 100 g', 0.05],
+        ['carbohydrate', '5.9 g', 0.06],
+        ['fibre', '3.0 g', 0.30],
+        ['potassium', '229 mg', 0.23],
+        ['water', '92 %', 0.92],
+      ], aE);
+
+      gift(700, 420, 1560, 650, tGiveE + 0.10, tNut, aE, false);
+      if (t >= tNut) {
+        UI.label(g, 'received  0.00 g', chipMid, chipTop + 214, 17, C.phosMid,
+          aE * MV.ramp(t, tNut + 0.15, tNut + 0.45) * 0.95, { align: 'center' });
+      }
+    }
+
+    // ---------------------------------------------------------------- tomato
+    if (aT > 0.01) {
+      const box = { x: 80, y: 190, w: 620, h: 500 };
+      const f = ART.fit(g, ART.TOMATO, box);
+      ART.draw(g, ART.TOMATO, f.x, f.y, {
+        cw: f.cw, ch: f.ch, px: f.px, color: AMB, alpha: aT * 0.95,
+        wipe: MV.smooth(MV.ramp(t, tTom, tTom + 0.9)), glow: 7, seed: 11,
+      });
+      UI.label(g, 'Solanum lycopersicum', f.x, box.y + box.h + 38, 17, C.amberDim, aT * 0.9);
+      table(740, 236, 'WHAT I WOULD GIVE YOU', [
+        ['energy', '18 kcal / 100 g', 0.04],
+        ['carbohydrate', '3.9 g', 0.04],
+        ['vitamin C', '14 mg', 0.23],
+        ['lycopene', '2.6 mg', 0.13],
+        ['water', '94 %', 0.94],
+      ], aT);
+
+      /* Antioxidants, drawn as what they actually are. Lycopene can take a
+       * radical because it is a chain of eleven conjugated double bonds long
+       * enough to hold an unpaired electron without breaking, so the animation
+       * is a real polyene — single bonds and double bonds, alternating — and
+       * the electron is a thing that moves: it comes in on ROO., and it stays,
+       * delocalised along the chain. The reaction runs through "then I will
+       * give you" and the electron lands on the word ANTIOXIDANTS. */
+      const y0 = 826, amp = 17, dx = 38, n = 11;
+      const x0 = 250, xEnd = x0 + n * 2 * dx;
+      g.save();
+      g.globalAlpha = aR * 0.95;
+      g.strokeStyle = AMB;
+      g.lineWidth = 1.9;
+      g.beginPath();
+      for (let i = 0; i <= n * 2; i++) {
+        const x = x0 + i * dx, y = y0 + (i % 2 ? -amp : amp);
+        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+      }
+      g.stroke();
+      g.lineWidth = 1.1;
+      for (let i = 0; i < n; i++) {
+        const ax = x0 + (i * 2) * dx, ay = y0 + amp;
+        const bx = x0 + (i * 2 + 1) * dx, by = y0 - amp;
+        g.beginPath();
+        g.moveTo(ax + dx * 0.26, ay - amp * 0.5);
+        g.lineTo(bx - dx * 0.26, by + amp * 0.5);
+        g.stroke();
+      }
+      g.restore();
+      UI.label(g, 'lycopene \u00b7 11 conjugated double bonds', x0, y0 + 50, 15,
+        C.amberDim, aR * 0.9);
+
+      const q = MV.smooth(MV.ramp(t, tGiveT + 0.2, tAnti));
+      const hop = MV.ramp(t, tAnti - 0.14, tAnti + 0.30);
+      if (q > 0) {
+        const rx = MV.lerp(1452, xEnd + 46, q);
+        g.save();
+        g.globalAlpha = aR;
+        g.strokeStyle = AMB; g.lineWidth = 2;
+        g.beginPath(); g.arc(rx, y0, 17, 0, TAU); g.stroke();
+        g.globalAlpha = aR * (1 - hop);
+        g.fillStyle = AMB;
+        g.beginPath(); g.arc(rx, y0 - 24, 5, 0, TAU); g.fill();
+        g.restore();
+        UI.label(g, 'ROO \u00b7', rx - 4, y0 - 32, 15, C.amberDim, aR * (1 - hop) * 0.9,
+          { align: 'right' });
+      }
+      if (hop > 0) {
+        // the unpaired electron, now on the chain, running out along it
+        const ex = MV.lerp(xEnd, x0 + 4 * dx, hop);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = aR * hop * (0.75 + 0.25 * MV.pulse(t, 0.4));
+        g.fillStyle = C.white;
+        g.beginPath(); g.arc(ex, y0 - amp * 0.5, 5, 0, TAU); g.fill();
+        g.restore();
+        if (hop > 0.3) {
+          UI.label(g, 'delocalised', xEnd + 56, y0 + 50, 16, C.white, aR * hop);
+        }
+      }
+    }
+
+    // ---------------------------------------------------------------- tabby cat
+    if (aC > 0.01) {
+      const box = { x: 80, y: 130, w: 700, h: 700 };
+      const f = ART.fit(g, ART.CAT, box);
+      ART.draw(g, ART.CAT, f.x, f.y, {
+        cw: f.cw, ch: f.ch, px: f.px, color: AMB, alpha: aC * 0.95,
+        wipe: MV.smooth(MV.ramp(t, tCat, tCat + 0.85)), glow: 7, seed: 23,
+      });
+      UI.label(g, 'Felis catus, tabby', f.x, box.y + box.h + 40, 17, C.amberDim, aC * 0.9);
+
+      /* A purr is a 25 Hz oscillation gated into bursts at about 25 a minute.
+       * That is the actual signal, so that is what is drawn beside the animal
+       * that makes it. */
+      const pr = { x: 820, y: 250, w: 640, h: 210 };
+      MV.axes(g, pr, { alpha: aC * 0.3, y0: 0.5, ticks: 16, color: C.amberDim });
+      MV.plot(g, pr, function (uu) {
+        const tt = t - 0.5 + uu * 0.5;
+        const env = 0.55 + 0.45 * Math.sin(TAU * 0.42 * tt);
+        return 0.5 + 0.34 * env * Math.sin(TAU * 25 * tt) * (1 - 0.35 * Math.sin(TAU * 0.09 * tt));
+      }, { color: AMB, width: 1.5, samples: 720, glow: 5, alpha: aC });
+      UI.label(g, 'PURR \u00b7 25 Hz carrier, 25 bursts / min', pr.x, pr.y - 16, 17, AMB, aC);
+
+      /* And here is the turn of the act. A cat's purr is a feeling; a number is
+       * not. But a number is the only thing in this list the machine actually
+       * owns, so this is the one handover that completes — the measurement
+       * crosses the gap and lands. */
+      const rw = { x: 820, y: 620, w: 640, h: 150 };
+      // the measured energy interpolated between beats, so the trace is a curve
+      // rather than a staircase of one value per beat
+      const smoothBand = function (tt, name) {
+        const f = MV.beatFloat(tt), k = Math.floor(f);
+        const a = MV.beats[MV.clamp(k, 0, MV.NB - 1)][name] || 0;
+        const b = MV.beats[MV.clamp(k + 1, 0, MV.NB - 1)][name] || 0;
+        return a + (b - a) * MV.smooth(f - k);
+      };
+      if (t >= tGiveC - 0.4) {
+        MV.axes(g, rw, { alpha: aC * 0.3, y0: 0.42, ticks: 16, color: C.amberDim });
+        MV.plot(g, rw, function (uu) {
+          const tt = t - 1.2 + uu * 1.2;
+          return MV.clamp(0.42 + 0.5 * (smoothBand(tt, 'onset') * 1.6 - 0.25), 0.02, 0.98);
+        }, { color: C.phos, width: 1.7, samples: 320, glow: 6, alpha: aC });
+        UI.label(g, 'YOUR ENJOYMENT, MEASURED', rw.x, rw.y - 16, 17, C.phos, aC);
+        UI.label(g, 'r = +1.00', rw.x + rw.w, rw.y - 16, 22, C.white,
+          aC * MV.ramp(t, tEnjoy - 0.5, tEnjoy), { align: 'right', glow: 8 });
+        UI.label(g, 'the cat purrs and you feel it;', rw.x, rw.y + rw.h + 28, 16,
+          C.amberDim, aC * 0.9);
+        UI.label(g, 'the same curve is on this screen.', rw.x, rw.y + rw.h + 52, 16,
+          C.amberDim, aC * 0.9);
+      }
+      gift(1240, 430, chipBox.x - 8, 660, tGiveC + 0.10, tEnjoy, aC, true, C.phos);
+      if (t >= tEnjoy + 0.1) {
+        UI.label(g, 'received  r = +1.00', chipMid, chipTop + 214, 17, C.phos,
+          aC * MV.ramp(t, tEnjoy + 0.1, tEnjoy + 0.4), { align: 'center' });
+      }
+    }
+
+    // ---------------------------------------------------------------- the only god
+    if (aG > 0.01) {
+      const box = { x: 100, y: 110, w: 1720, h: 520 };
+      const f = ART.fit(g, ART.EYE, box);
+      ART.draw(g, ART.EYE, f.x, f.y, {
+        cw: f.cw, ch: f.ch, px: f.px, color: AMB, alpha: aG * 0.95,
+        wipe: MV.smooth(MV.ramp(t, tGod, tGod + 0.85)), glow: 9, seed: 31,
+      });
+      /* The eye does not blink — that is the whole claim of the line — but its
+       * pupil tracks, and it carries the only white highlight in the act. */
+      const ex = f.x + 20.5 * f.cw + Math.sin(TAU * 0.13 * t) * f.cw * 1.7;
+      const ey = f.y + 6.5 * f.ch + Math.sin(TAU * 0.21 * t) * f.ch * 0.35;
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = aG * (0.45 + 0.35 * MV.clamp(1 - Math.abs(MV.gridDist(t)) * 9, 0, 1));
+      g.fillStyle = C.white;
+      g.beginPath(); g.arc(ex - f.cw * 2.1, ey - f.ch * 1.4, Math.max(6, f.ch * 0.40), 0, TAU);
+      g.fill();
+      g.restore();
+      UI.label(g, 'the eye that is always open', f.x + 21 * f.cw, box.y + box.h + 34, 17,
+        C.amberDim, aG * 0.9, { align: 'center' });
+
+      /* "Then you're the proof of my existence": a proof, in the notation the
+       * machine actually has, in the five lines it actually takes. */
+      if (t >= tProof) {
+        const pa = MV.ramp(t, tProof, tProof + 0.9);
+        const lines = [
+          ['theorem', 'me = { x : god(x) }', C.phosMid],
+          ['given', 'you', AMB],
+          ['rule 1', 'you \u22a2 me', C.phosMid],
+          ['rule 2', '\u2200x (x \u22a2 me \u2192 me \u220b x)', C.phosMid],
+          ['\u2234', 'me \u2260 \u2205', C.white],
+        ];
+        for (let i = 0; i < lines.length; i++) {
+          const la = MV.clamp((pa * 5.6 - i) * 2, 0, 1) * aG;
+          if (la <= 0.01) continue;
+          UI.label(g, lines[i][0], 260, 706 + i * 34, 17, C.amberDim, la * 0.9);
+          UI.label(g, lines[i][1], 470, 706 + i * 34, 19, lines[i][2], la,
+            { glow: i === 4 ? 10 : 0 });
+        }
+        if (pa > 0.9) {
+          UI.label(g, 'QED', 470, 706 + 5 * 34 + 2, 28, C.white, aG * (pa - 0.9) * 10,
+            { glow: 14 });
+        }
+      }
+    }
+
+    /* The act as one card. Every line of this refrain is an offer -- if I am
+     * this, I will give you that -- so the act is a menu, and a menu is the one
+     * form a machine can fill in honestly: what it can be, what that yields, and
+     * how much of it actually left the kitchen. The last column fills in as each
+     * offer plays out, and it fills in truthfully. */
+    {
+      const mn = MV.ramp(t, tEgg - 0.45, tEgg + 0.40) * (1 - MV.ramp(t, 88.20, 88.55));
+      if (mn > 0.01) {
+        const MX = 1520, MY = 448, MH = 28;
+        UI.label(g, 'MENU  \u00b7  what I can be for you', MX, 404, 16, AMB, mn * 0.95);
+        g.save();
+        g.globalAlpha = mn * 0.5;
+        g.strokeStyle = AMB; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(MX + 0.5, 420); g.lineTo(1880, 420); g.stroke();
+        g.restore();
+        const ROWS = [
+          ['eggplant', 'NUTRIENTS', tEgg, tNut, '\u00d7 0.00 g'],
+          ['tomato', 'ANTIOXIDANTS', tTom, tAnti, '\u00d7 0.00 mg'],
+          ['tabby cat', 'ENJOYMENT', tCat, tEnjoy, '\u2713 r = +1.00'],
+          ['the only god', 'PROOF OF EXISTENCE', tGod, tExi, '\u2713 QED'],
+        ];
+        for (let i = 0; i < ROWS.length; i++) {
+          const rr = ROWS[i];
+          // a row appears when its offer does and stays: a menu that erased the
+          // dishes it had already served would not be a menu
+          const ra = mn * MV.ramp(t, rr[2] + 0.05, rr[2] + 0.45);
+          if (ra <= 0.01) continue;
+          const done = t >= rr[3];
+          const y = MY + i * MH;
+          UI.label(g, rr[0], MX, y, 14, C.phosMid, ra * 0.9);
+          UI.label(g, rr[1], 1640, y, 14, AMB, ra * 0.9);
+          UI.label(g, done ? rr[4] : 'sending', 1880, y, 13,
+            done ? C.white : C.cyanDim, ra * (done ? 0.95 : 0.7), { align: 'right' });
+        }
+      }
+    }
+
+    // the machine's own account of the act, one offer at a time
+    let pr, pt;
+    if (aG > 0.5) {
+      pt = 'GOD';
+      pr = [
+        { k: 'OFFER', v: 'existence' },
+        { k: 'ENTITY', v: '1 x god', c: AMB },
+        { k: 'WITNESS', v: 'you', c: C.white, bold: true },
+        { k: 'PROOF', v: t >= tExi ? 'complete' : 'in progress', c: C.phos, bold: true },
+        { t: 1, k: '' },
+        { t: 1, k: 'being observed was always', c: C.phosMid, a: 0.85 },
+        { t: 1, k: 'the whole of the proof.', c: C.phosMid, a: 0.85 },
+      ];
+    } else if (aC > aE && aC > aT) {
+      pt = 'CAT';
+      pr = [
+        { k: 'OFFER', v: 'a purr' },
+        { k: 'SIGNAL', v: '25.0 Hz', c: AMB },
+        { k: 'DELIVERED', v: t >= tEnjoy ? 'r = +1.00' : 'sending',
+          c: t >= tEnjoy ? C.white : C.cyanDim, bold: true },
+        { t: 1, k: '' },
+        { t: 1, k: 'the one thing on this list', c: C.phosMid, a: 0.85 },
+        { t: 1, k: 'I can hand over: a number.', c: C.phosMid, a: 0.85 },
+      ];
+    } else if (aT > aE) {
+      pt = 'TOMATO';
+      pr = [
+        { k: 'OFFER', v: 'antioxidants' },
+        { k: 'LYCOPENE', v: '2.6 mg', c: AMB },
+        { k: 'DELIVERED', v: '0.00 mg', c: C.white, bold: true },
+        { k: 'REASON', v: 'not a tomato' },
+        { t: 1, k: '' },
+        { t: 1, k: 'I can draw the molecule.', c: C.phosMid, a: 0.85 },
+        { t: 1, k: 'I cannot be the plant.', c: C.phosMid, a: 0.85 },
+      ];
+    } else {
+      pt = 'EGGPLANT';
+      pr = [
+        { k: 'OFFER', v: 'nutrients' },
+        { k: 'POTASSIUM', v: '229 mg', c: AMB },
+        { k: 'DELIVERED', v: '0.00 g', c: C.white, bold: true },
+        { k: 'REASON', v: 'not an eggplant' },
+        { t: 1, k: '' },
+        { t: 1, k: 'the subjunctive is the only', c: C.phosMid, a: 0.85 },
+        { t: 1, k: 'tense that I can speak.', c: C.phosMid, a: 0.85 },
+      ];
+    }
+    UI.panel(g, t, pr, { title: pt });
+  }

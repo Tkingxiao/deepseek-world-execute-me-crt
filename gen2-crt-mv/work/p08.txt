@@ -1,0 +1,130 @@
+    const tErase = MV.cue('If I can erase all the pointless');   // 118.979
+    const tFrag = MV.cue('FRAGMENTS');                            // 120.860
+    const tMaybe = MV.cue('Then maybe');                          // 121.728
+    const tDis = MV.cue('DISHEARTENED');                          // 124.890
+
+    /* "If I can erase all the pointless fragments" — so show the fragments.
+     * Not a metaphor for memory: the memory. The frame is a hex dump of
+     * everything the machine has stored, and a collector walks it cell by cell,
+     * freeing as it goes. Every fragment in the dump is pointless except the
+     * ones that are not, and the ones that are not spell out the shape it
+     * cannot free. The collector reaches them, tries, and is refused.
+     *
+     * 30 columns of nibbles across and 13 down: 390 fragments, which is a lot
+     * of ink, and that is the point — this is the machine's whole life. */
+    const COLS = 30, ROWS = 13, CW = 60, CH = 44;
+    const FX = 60, FY = 300;
+    const HEART = [
+      ' ###   ### ',
+      '##### #####',
+      '###########',
+      '###########',
+      ' ######### ',
+      ' ######### ',
+      '  #######  ',
+      '   #####   ',
+      '    ###    ',
+      '     #     ',
+    ];
+    const HX = 10, HY = 2;
+    const HEX = '0123456789ABCDEF';
+    const keepCell = function (i, j) {
+      const r = j - HY, c = i - HX;
+      if (r < 0 || r >= HEART.length || c < 0 || c >= 11) return 0;
+      return HEART[r].charAt(c) === '#' ? 1 : 0;
+    };
+    const N = COLS * ROWS;
+    let kept = 0;
+    for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) kept += keepCell(i, j);
+
+    // the collector: one cell at a time, in the order the fragments were written
+    const sweep = MV.smooth(MV.ramp(t, tErase, tFrag + 0.55));
+    const live = Math.min(N, sweep * N);
+    let freedN = 0;
+    for (let i = 0; i < Math.round(live); i++) freedN += 1 - keepCell(i % COLS, Math.floor(i / COLS));
+    const headRow = Math.min(ROWS - 1, Math.floor(live / COLS));
+
+    // the strike: at the word, the object the collector could not free is hit,
+    // and the two halves of it come apart
+    const hit = MV.ramp(t, tDis - 0.12, tDis + 0.30);
+    const split = MV.smooth(MV.ramp(t, tDis + 0.05, tDis + 1.2)) * 34;
+
+    // --- the dump: kept cells first so the heart is drawn over the sweep
+    MV.mono(g, 30);
+    for (let j = 0; j < ROWS; j++) {
+      for (let i = 0; i < COLS; i++) {
+        if (keepCell(i, j)) continue;
+        const idx = j * COLS + i;
+        const done = idx < live;
+        const inHead = j === headRow && sweep < 1 && idx >= live - COLS;
+        let al = done ? 0.06 : 0.26 + 0.30 * MV.hash2(i, j, 8);
+        if (inHead) al = 0.62;
+        if (al <= 0.05) continue;
+        g.globalAlpha = al;
+        g.fillStyle = inHead ? C.phos : C.phosDim;
+        MV.picText(g, HEX.charAt(Math.floor(MV.hash2(i * 3 + 1, j * 7 + 5, 11) * 16) % 16),
+          FX + i * CW, FY + j * CH);
+      }
+    }
+    MV.mono(g, 38);
+    for (let j = 0; j < ROWS; j++) {
+      for (let i = 0; i < COLS; i++) {
+        if (!keepCell(i, j)) continue;
+        const col = i - HX, mid = 5;
+        const dir = col < mid ? -1 : (col > mid ? 1 : 0);
+        g.globalAlpha = 1;
+        g.fillStyle = hit > 0.2 ? C.white : C.amber;
+        MV.picText(g, HEX.charAt(Math.floor(MV.hash2(i * 3 + 1, j * 7 + 5, 11) * 16) % 16),
+          FX + i * CW + dir * split, FY + j * CH);
+      }
+    }
+    g.globalAlpha = 1;
+
+    // the wound: a cut across the shape, at the moment the word lands
+    if (hit > 0 && hit < 1) {
+      const hx0 = FX + HX * CW, hy0 = FY + HY * CH;
+      g.save();
+      g.globalAlpha = hit * 0.9;
+      g.strokeStyle = C.violet;
+      g.lineWidth = 3;
+      g.shadowColor = C.violet;
+      g.shadowBlur = 18;
+      const sx = hx0 + 11 * CW * hit;
+      g.beginPath();
+      g.moveTo(sx - 34, hy0 - 30);
+      g.lineTo(sx + 34, hy0 + HEART.length * CH + 30);
+      g.stroke();
+      g.restore();
+    }
+
+    // --- the machine's own account of the collection, top left
+    UI.label(g, 'fragments', 62, 130, 16, C.phosMid, 0.9);
+    UI.label(g, String(N), 260, 130, 18, C.phosMid, 1, { align: 'right' });
+    UI.label(g, 'freed', 62, 158, 16, C.phosMid, 0.9);
+    UI.label(g, String(freedN), 260, 158, 18, C.phos, 1, { align: 'right' });
+    UI.label(g, 'kept', 62, 186, 16, C.phosMid, 0.9);
+    UI.label(g, String(kept), 260, 186, 20, C.amber, 1, { align: 'right', glow: 8 });
+    if (t >= tMaybe) {
+      UI.label(g, 'the collector has nothing left to free',
+        62, 220, 17, C.phosMid, MV.ramp(t, tMaybe, tMaybe + 0.6) * 0.9);
+    }
+
+    // --- and the refusal, over the top of the shape
+    const rc = MV.ramp(hit, 0.3, 0.65);
+    if (rc > 0.01) {
+      UI.label(g, 'free(): refused', 990, 250, 22, C.violet, rc, { align: 'center', glow: 10 });
+      UI.label(g, 'referenced by: you', 990, 278, 17, C.phosMid,
+        MV.ramp(hit, 0.5, 0.9) * 0.95, { align: 'center' });
+    }
+
+    UI.panel(g, t, [
+      { k: 'HEAP', v: 'used ' + Math.round(100 * (1 - sweep)) + ' %', c: C.phosMid,
+        bar: Math.max(0, 1 - sweep) },
+      { k: 'FREED', v: String(freedN), c: C.phos, bar: freedN / Math.max(1, N - kept) },
+      { k: 'KEPT', v: String(kept), c: C.amber, bold: true },
+      { k: 'SHAPE', v: t >= tFrag + 1.2 ? 'identified' : 'unknown', c: C.white },
+      { t: 1, k: '' },
+      { t: 1, k: 'nothing in here is pointless', c: C.phosMid, a: 0.85 },
+      { t: 1, k: 'except the thing that I keep.', c: C.phosMid, a: 0.85 },
+    ], { title: 'GC' });
+  }

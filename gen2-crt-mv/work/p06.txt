@@ -1,0 +1,359 @@
+    const VIO = C.violet, VD = C.violetDim, PH = C.phos, WH = C.white, CY = C.cyan;
+    const AMB = C.amber;
+    const tGen = MV.cue('Switch my gender');        // 88.587
+    const tFM = MV.cue('To F to M');                // 90.181
+    const tWhat = MV.cue('And then do whatever');   // 92.027
+    const tAM = MV.cue('From AM to PM');            // 93.873
+    const tRole = MV.cue('Oh switch my role');      // 95.465
+    const tSM = MV.cue('To S to M');                // 97.739
+    const tEnter = MV.cue('So we can enter');        // 99.411
+    const tTr = MV.cue('The trance the trance');    // 101.474
+    const BT = MV.beat;
+
+    /* ------------------------------------------------------------------- the record
+     * A person, as this machine holds one: a fixed set of fields. "Switch my
+     * gender" is a write to one of them, and the body on the glass is only the
+     * record being re-rendered -- same slots, different numbers, exactly the way
+     * a raster is the same grid with different glyphs. Nothing is added or
+     * removed between the two sets below. */
+    const FORM_A = MV.form('humanoid');
+    const FORM_B = (function () {
+      const src = MV.form('humanoid');
+      const out = [];
+      for (let i = 0; i < src.length; i++) {
+        const p = src[i];
+        let x = p.x, rx = p.rx, ry = p.ry, rot = p.rot;
+        if (i === 0) { rx = p.rx * 0.86; ry = p.ry * 0.96; }
+        if (i === 1) { rx = p.rx * 1.24; }                 // torso, broader
+        if (i === 2 || i === 3) { x = p.x * 1.12; rot = p.rot * 1.60; }
+        if (i === 4 || i === 5) { x = p.x * 1.06; rot = p.rot * 1.60; }
+        if (i === 6 || i === 7) { rx = p.rx * 1.22; rot = p.rot * 0.35; }
+        if (i === 8 || i === 9) { x = p.x * 0.68; }        // eyes closer
+        out.push({ x: x, y: p.y, rx: rx, ry: ry, rot: rot, w: p.w });
+      }
+      return out;
+    })();
+
+    const tVA = MV.smooth(MV.ramp(t, tGen - 0.5, tGen + 0.9));
+    const clkA = MV.smooth(MV.ramp(t, tAM - 0.85, tAM + 0.65));       // the clock takes the frame
+    const roleA = MV.smooth(MV.ramp(t, tRole - 0.55, tRole + 0.75));  // the self doubles
+    const clkB = 1 - MV.smooth(MV.ramp(t, tEnter - 0.5, tEnter + 0.8));
+    const trA = MV.smooth(MV.ramp(t, tEnter - 0.35, tEnter + 0.95));  // the loop
+    const fl = Math.exp(-MV.beatPhase(t) * 7);                        // one flash per beat
+
+    /* the parameter itself: 0 at "M", 1 at "F", written on the beat */
+    const uF1 = MV.smooth(MV.ramp(t, tFM - 0.06, tFM + 0.34));
+    const uW = MV.smooth(MV.ramp(t, tWhat - 0.06, tWhat + 0.40));
+    const osc = 0.5 - 0.5 * Math.cos(TAU * MV.beatPhase(t));
+    const uP = MV.clamp(MV.lerp(uF1, osc, uW * (1 - 0.72 * clkA)), 0, 1);
+    const uS = MV.clamp(MV.lerp(uP, 0.5, clkA * 0.55), 0, 1);
+
+    // one cell size for the whole act, and the glyph grid uses its own advance
+    const BPX = 15;
+    MV.mono(g, BPX, 'bold');
+    const BADV = Math.max(5, g.measureText('M').width);
+    const BC = { w: BADV, h: BPX * 1.04 };
+    const HWD = 1.2 / 1.92;
+    const drawBody = function (cxx, feet, H, u2, a, seed) {
+      if (a <= 0.004) return;
+      const W = H * HWD;
+      MV.creature(g, MV.rectFor('humanoid', cxx - W * 0.5, feet - H, W, H), BC,
+        MV.morph(FORM_A, FORM_B, u2), {
+          color: VIO, alpha: a, ramp: ' .:-=+*xX#M', px: BPX, threshold: 0.03,
+          seed: seed, jitter: 0.18, glow: 5,
+        });
+    };
+
+    /* --------------------------------------------------------------- the edit
+     * One body, one fader, and the two ends of the field named. The bar is not a
+     * metaphor: it is the value of the field the body is being drawn from. */
+    const mainA = tVA * (1 - roleA);
+    if (mainA > 0.004) {
+      /* The body does not move when a field is rewritten: same slot, same size,
+       * only the glyphs inside the grid change. */
+      const H1 = 700, X1 = 468, F1 = 872;
+      drawBody(X1, F1, H1, uS, mainA, 37);
+    }
+    // the rig, for a beat, at the moment the field is written
+    const wire = MV.taper(t, tFM - 0.06, tFM + 0.16, tFM + 0.40, tFM + 0.80);
+    if (wire > 0.02 && mainA > 0.02) {
+      const H1 = 700, X1 = 468, F1 = 872;
+      const W1 = H1 * HWD, fx0 = X1 - W1 * 0.5, fy0 = F1 - H1;
+      const prims = MV.form('humanoid');
+      g.save();
+      g.globalAlpha = wire * 0.85;
+      g.strokeStyle = VD;
+      g.lineWidth = 1;
+      g.beginPath();
+      for (let i = 0; i < prims.length; i++) {
+        const p = prims[i];
+        if (!p.w) continue;
+        g.ellipse(fx0 + (p.x + 1) * 0.5 * W1, fy0 + (1 - p.y) * 0.5 * H1,
+          Math.abs(p.rx) * 0.5 * W1, Math.abs(p.ry) * 0.5 * H1, -p.rot, 0, TAU);
+      }
+      g.stroke();
+      g.restore();
+    }
+
+    const slA = tVA * (1 - clkA);
+    if (slA > 0.004) {
+      const TX = 1010, T0 = 176, T1 = 748;
+      g.save();
+      g.globalAlpha = slA * 0.5;
+      g.strokeStyle = VD;
+      g.lineWidth = 1;
+      g.beginPath(); g.moveTo(TX + 0.5, T0); g.lineTo(TX + 0.5, T1); g.stroke();
+      for (let i = 0; i <= 16; i++) {
+        const yy = T0 + (T1 - T0) * i / 16;
+        g.beginPath();
+        g.moveTo(TX + 0.5, yy); g.lineTo(TX + (i % 4 === 0 ? 14 : 8) + 0.5, yy);
+        g.stroke();
+      }
+      g.restore();
+      const ky = MV.lerp(T1, T0, uS);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = slA * (0.4 + 0.6 * fl);
+      g.fillStyle = WH;
+      g.fillRect(TX - 17, ky - 5, 34, 10);
+      g.globalAlpha = slA * 0.30;
+      g.fillStyle = VIO;
+      g.fillRect(TX - 26, ky - 9, 52, 18);
+      g.restore();
+      UI.label(g, 'F', TX - 36, T0 + 4, 17, uS > 0.5 ? WH : VD, slA * (uS > 0.5 ? 1 : 0.7));
+      UI.label(g, 'M', TX - 36, T1, 17, uS < 0.5 ? WH : VD, slA * (uS < 0.5 ? 1 : 0.7));
+      UI.label(g, 'gender', TX + 44, ky - 6, 16, WH, slA, { weight: 'bold' });
+      UI.label(g, '= ' + uS.toFixed(3), TX + 128, ky - 6, 16, VIO, slA);
+
+      // the record, as the machine holds it
+      const RX = 1240, RY = 236, RW = 236;
+      g.save();
+      g.globalAlpha = slA * 0.55;
+      g.strokeStyle = VD; g.lineWidth = 1;
+      g.strokeRect(RX + 0.5, RY + 0.5, RW, 236);
+      g.restore();
+      UI.label(g, 'RECORD 0x0mv', RX + 10, RY + 22, 14, CY, slA * 0.9);
+      const fields = [
+        ['gender', uS, 'M', 'F'],
+        ['role', MV.lerp(0.5, 0.5, 0), 'S', 'M'],
+        ['clock', MV.clamp((t - tAM + 1.62) / 3.24, 0, 1), 'AM', 'PM'],
+      ];
+      for (let i = 0; i < fields.length; i++) {
+        const fy = RY + 56 + i * 52;
+        UI.label(g, fields[i][0], RX + 10, fy, 14, VD, slA * 0.95);
+        const cwA = (function () { MV.mono(g, 14); return g.measureText('M').width; })();
+        UI.bar(g, RX + 84, fy - 10, 12, cwA, fields[i][1], i === 0 ? VIO : VD, slA * 0.9, { px: 14 });
+        UI.label(g, fields[i][2], RX + 196, fy, 13, VD, slA * 0.8);
+        UI.label(g, fields[i][3], RX + 218, fy, 13, VD, slA * 0.8);
+      }
+    }
+
+    /* ---------------------------------------------------------------- the clock
+     * "From AM to PM": the same write, to a different field. The clock field is a
+     * ring of 24 hour-cells. The hours already written are lit warm, the night
+     * hours are violet, the ones not yet written are dark -- and the hand is
+     * walked from 09:00 to 21:00 inside one line of the song. Around midnight the
+     * colour flips, which is all that "AM to PM" changes about the value. */
+    const hour = MV.clamp(9 + 12 * (t - tAM) / 1.62, 9, 21);
+    const dk = MV.smooth(MV.ramp(hour, 11.55, 12.45));       // noon: day becomes night
+    /* the ring is gone before the body doubles: the field is written, the plate
+     * that held it is not needed once the value is inside the body */
+    const dialA = clkA * clkB * tVA * (1 - MV.smooth(MV.ramp(t, tRole - 1.00, tRole - 0.20)));
+    if (dialA > 0.004) {
+      const OX = 1180, OY = 520, R = 330, RIN = 252;
+      const a1 = dialA;
+      const angOf = function (h2) { return -Math.PI / 2 + (h2 / 24) * TAU; };
+      g.save();
+      for (let h2 = 0; h2 < 24; h2++) {
+        const night = h2 < 6 || h2 >= 18;
+        const done = h2 >= 9 && h2 + 1 <= hour;
+        const col = done ? AMB : (night ? VIO : AMB);
+        const fa = done ? 0.20 + 0.18 * (1 - dk) : (night ? 0.08 + 0.12 * dk : 0.05);
+        g.globalAlpha = a1 * fa;
+        g.fillStyle = col;
+        g.beginPath();
+        g.arc(OX, OY, R - 4, angOf(h2), angOf(h2 + 1), false);
+        g.arc(OX, OY, RIN, angOf(h2 + 1), angOf(h2), true);
+        g.closePath(); g.fill();
+      }
+      // the ring and its hour marks
+      g.globalAlpha = a1 * 0.8;
+      g.strokeStyle = VD; g.lineWidth = 1.4;
+      g.beginPath(); g.arc(OX, OY, R, 0, TAU); g.stroke();
+      g.beginPath(); g.arc(OX, OY, RIN, 0, TAU); g.stroke();
+      g.lineWidth = 1;
+      for (let h2 = 0; h2 < 24; h2++) {
+        const ag = angOf(h2), big = h2 % 6 === 0;
+        g.globalAlpha = a1 * (big ? 0.9 : 0.45);
+        g.beginPath();
+        g.moveTo(OX + Math.cos(ag) * RIN, OY + Math.sin(ag) * RIN);
+        g.lineTo(OX + Math.cos(ag) * R, OY + Math.sin(ag) * R);
+        g.stroke();
+      }
+      g.restore();
+      for (let h2 = 0; h2 < 24; h2 += 3) {
+        const ag = angOf(h2), rm = (R + RIN) * 0.5;
+        UI.label(g, (h2 < 10 ? '0' : '') + h2, OX + Math.cos(ag) * rm - 12,
+          OY + Math.sin(ag) * rm + 6, 15,
+          h2 >= 6 && h2 <= 18 ? AMB : VIO, a1 * (h2 === 9 || h2 === 21 ? 1 : 0.85));
+      }
+      // the hours already written, swept: an arc from 09:00 to now
+      const ag = angOf(hour);
+      g.save();
+      g.globalAlpha = a1 * 0.85;
+      g.strokeStyle = dk > 0.5 ? VIO : AMB;
+      g.lineWidth = 2.6;
+      g.beginPath(); g.arc(OX, OY, RIN - 16, angOf(9), ag); g.stroke();
+      // the hand, and the head of the hand
+      g.globalAlpha = a1 * 0.75;
+      g.strokeStyle = WH; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(OX, OY); g.lineTo(OX + Math.cos(ag) * (RIN - 40), OY + Math.sin(ag) * (RIN - 40));
+      g.stroke();
+      g.globalAlpha = a1 * 0.92;
+      g.fillStyle = WH;
+      g.beginPath(); g.arc(OX + Math.cos(ag) * (RIN - 16), OY + Math.sin(ag) * (RIN - 16), 5, 0, TAU); g.fill();
+      g.restore();
+      // the hub: the time itself, and the half of the day it is in
+      g.save();
+      g.globalAlpha = a1 * 0.94;
+      g.fillStyle = '#050a07';
+      g.beginPath(); g.arc(OX, OY, 74, 0, TAU); g.fill();
+      g.strokeStyle = dk > 0.5 ? VIO : AMB;
+      g.lineWidth = 1.5;
+      g.globalAlpha = a1 * 0.9;
+      g.beginPath(); g.arc(OX, OY, 74, 0, TAU); g.stroke();
+      g.restore();
+      const hh = Math.floor(hour), mm = Math.floor((hour - hh) * 60);
+      UI.label(g, (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm, OX - 52, OY + 4,
+        26, dk > 0.5 ? VIO : WH, a1, { weight: 'bold' });
+      UI.label(g, dk > 0.5 ? 'PM  \u591c' : 'AM  \u65e5', OX - 26, OY + 34, 15,
+        dk > 0.5 ? VIO : AMB, a1 * 0.9);
+    }
+
+    /* ----------------------------------------------------------------- the role
+     * "Oh switch my role / To S to M": the same body twice, and one directed edge
+     * between them. The arrow does not change length when it turns round. */
+    if (roleA > 0.004) {
+      const rev = MV.smooth(MV.ramp(t, tSM - 0.08, tSM + 0.42));
+      const fx1 = MV.lerp(430, 960, trA), fx2 = MV.lerp(1330, 960, trA);
+      const H2 = MV.lerp(520, 610, trA);
+      const twoA = tVA * roleA * (1 - trA * 0.25);
+      drawBody(fx1, 880, H2, uS, twoA, 41);
+      drawBody(fx2, 880, H2, 1 - uS, twoA, 43);
+      if (trA < 0.85) {
+        const ay = MV.lerp(430, 470, clkA * 0) - 0;
+        const ax = fx1 + H2 * HWD * 0.55, bx = fx2 - H2 * HWD * 0.55;
+        const dir = rev > 0.5 ? -1 : 1;
+        g.save();
+        g.globalAlpha = roleA * tVA * 0.9 * (1 - trA);
+        g.strokeStyle = rev > 0.5 ? AMB : CY;
+        g.lineWidth = 3;
+        g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, ay); g.stroke();
+        g.fillStyle = rev > 0.5 ? AMB : CY;
+        const tipx = dir > 0 ? bx : ax;
+        g.beginPath();
+        g.moveTo(tipx, ay);
+        g.lineTo(tipx - 22 * dir, ay - 15);
+        g.lineTo(tipx - 22 * dir, ay + 15);
+        g.closePath(); g.fill();
+        g.restore();
+        UI.label(g, 'role: S', fx1 - 34, 300, 16, VD, roleA * tVA * 0.9);
+        UI.label(g, 'role: M', fx2 - 34, 300, 16, WH, roleA * tVA * 0.9);
+        UI.label(g, rev > 0.5 ? 'loves' : 'commands', MV.lerp(ax, bx, 0.5) - 34, ay - 26, 14,
+          VD, roleA * tVA * (1 - trA) * 0.95);
+      }
+    }
+
+    /* --------------------------------------------------------------- the trance
+     * "So we can enter the trance": the two of them are the same body again, and
+     * the body is on an orbit. One lap per two beats, and the state at the start
+     * of every lap is the state at the start of the last one -- which is what a
+     * trance is, written down. There is no exit in the diagram because there is
+     * no exit in the diagram. */
+    if (trA > 0.004) {
+      const OX = 960, OY = 604, RXE = 372, RYE = 132;
+      const lap = MV.beatFloat(t) * 0.5;
+      const loops = Math.floor(lap);
+      const th = lap * TAU;
+      g.save();
+      g.globalAlpha = trA * tVA * 0.55;
+      g.strokeStyle = VIO; g.lineWidth = 1.2;
+      g.beginPath(); g.ellipse(OX, OY, RXE, RYE, 0, 0, TAU); g.stroke();
+      g.restore();
+      // the trail behind the marker is the same lap, drawn back
+      g.save();
+      g.globalAlpha = trA * tVA * 0.95;
+      g.strokeStyle = VIO; g.lineWidth = 2.4;
+      g.shadowColor = VIO; g.shadowBlur = 12;
+      g.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const a2 = th - i / 40 * 1.05;
+        const xx = OX + Math.cos(a2) * RXE, yy = OY + Math.sin(a2) * RYE;
+        if (i) g.lineTo(xx, yy); else g.moveTo(xx, yy);
+      }
+      g.stroke();
+      g.restore();
+      const mkx = OX + Math.cos(th) * RXE, mky = OY + Math.sin(th) * RYE;
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = trA * tVA * (0.5 + 0.5 * fl);
+      g.fillStyle = WH;
+      g.beginPath(); g.arc(mkx, mky, 9 + 5 * fl, 0, TAU); g.fill();
+      g.globalAlpha = trA * tVA * fl * 0.35;
+      g.fillStyle = VIO;
+      g.beginPath(); g.arc(OX, OY, RXE * 0.6 + 40 * (1 - fl), RYE * 0.6 + 14 * (1 - fl), 0, TAU); g.fill();
+      g.restore();
+      UI.label(g, 'lap ' + loops, OX + RXE + 8, OY - 84, 16, VIO, trA * tVA);
+    }
+
+    /* ------------------------------------------------------------------ readout */
+    if (t >= tEnter - 0.1) {
+      UI.panel(g, t, [
+        { k: 'orbit', v: 'closed', c: VIO, bold: true },
+        { k: 'period', v: '2 beats', c: VD },
+        { k: 'laps', v: String(Math.max(0, Math.floor(MV.beatFloat(t) * 0.5))), c: VIO },
+        { k: 'exits', v: '0', c: WH, bold: true },
+        { k: 'state', v: 'repeats', c: PH },
+        { t: 1, k: '' },
+        { t: 1, k: 'state(t) = state(t - 2 beats)', c: VD, a: 0.9 },
+        { t: 1, k: 'there is no field for leaving.', c: VD, a: 0.85 },
+        { t: 1, k: 'the loop is not a prison sentence,', c: VD, a: 0.85 },
+        { t: 1, k: 'it is a property of the map.', c: VIO, a: 0.9 },
+      ], { title: 'TRANCE' });
+    } else if (t >= tRole - 0.3) {
+      UI.panel(g, t, [
+        { k: 'role', v: MV.smooth(MV.ramp(t, tSM - 0.08, tSM + 0.42)) > 0.5 ? 'M' : 'S', c: WH, bold: true },
+        { k: 'edge', v: MV.smooth(MV.ramp(t, tSM - 0.08, tSM + 0.42)) > 0.5 ? 'M -> S' : 'S -> M', c: CY },
+        { k: 'bodies', v: '2', c: VIO },
+        { k: 'record', v: 'shared', c: VD },
+        { t: 1, k: '' },
+        { t: 1, k: 'the same body, two directions.', c: VD, a: 0.85 },
+        { t: 1, k: 'which way the arrow points is', c: VD, a: 0.85 },
+        { t: 1, k: 'another field, and it was written.', c: VIO, a: 0.9 },
+      ], { title: 'ROLE' });
+    } else if (t >= tAM - 0.5) {
+      const hh = Math.floor(hour), mm = Math.floor((hour - hh) * 60);
+      UI.panel(g, t, [
+        { k: 'field', v: 'clock', c: CY, bold: true },
+        { k: 'time', v: (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm, c: WH, bold: true },
+        { k: 'half', v: dk > 0.5 ? 'PM' : 'AM', c: dk > 0.5 ? VIO : AMB },
+        { k: 'light', v: dk > 0.5 ? 'night' : 'day', c: dk > 0.5 ? VIO : AMB },
+        { k: 'sun', v: dk > 0.5 ? 'set' : 'up', c: PH },
+        { t: 1, k: '' },
+        { t: 1, k: 'nine in the morning was a value,', c: VD, a: 0.85 },
+        { t: 1, k: 'nine at night is the same value', c: VD, a: 0.85 },
+        { t: 1, k: 'plus twelve. the day is a number.', c: VIO, a: 0.9 },
+      ], { title: 'CLOCK' });
+    } else {
+      UI.panel(g, t, [
+        { k: 'gender', v: uS.toFixed(3), c: VIO, bold: true, bar: uS },
+        { k: 'written', v: uW > 0.5 ? 'every beat' : (uF1 > 0.5 ? 'F' : 'M'), c: CY },
+        { k: 'fields', v: '3', c: VD },
+        { k: 'record', v: '0x0mv', c: VD },
+        { t: 1, k: '' },
+        { t: 1, k: 'switch my gender: one field, and', c: VD, a: 0.85 },
+        { t: 1, k: 'the body is redrawn from it.', c: VD, a: 0.85 },
+        { t: 1, k: 'nothing else in the record moved.', c: VIO, a: 0.9 },
+      ], { title: 'IDENTITY' });
+    }
+  }

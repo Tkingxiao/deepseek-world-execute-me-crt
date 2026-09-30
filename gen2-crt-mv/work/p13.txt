@@ -1,0 +1,268 @@
+    const WHT = C.white, PH = C.phos, VIO = C.violet, CY = C.cyan, AM = C.amber;
+    const RDD = C.red;
+    const T0 = 191.356, LO1 = 191.2529;      // the last refrain lands here
+    const CX0 = 960, CY0 = 536;              // the screen point the camera orbits
+    const MAP = { x: 0, y: 68, w: 1920, h: 936 };
+    const B = MV.basins(), NB = B.length;
+
+    /* --------------------------------------------------------------- camera
+     * One shot, fourteen seconds long. It starts inside the valley the last
+     * refrain fell into and pulls straight out until the whole landscape fits in
+     * the tube, then drifts, so the frame is never quite still. */
+    const zoom = MV.lerp(0.34, 1.0, MV.smooth(MV.ramp(t, 192.35, 199.45)));
+    const pan = MV.smooth(MV.ramp(t, 199.45, 205.60));
+    const MXW = CX0 - 96 * pan, MYW = CY0 - 34 * pan;
+    const SX = function (wx) { return CX0 + (wx - MXW) / zoom; };
+    const SY = function (wy) { return CY0 + (wy - MYW) / zoom; };
+    const dim = MV.smooth(MV.ramp(t, 204.30, 205.72));
+    const dk = MV.smooth(MV.ramp(t, 200.55, 204.55));
+    const sh2 = MV.taper(t, LO1 - 0.12, LO1 + 0.05, LO1 + 0.52, LO1 + 0.96);
+
+    /* ------------------------------------------------------------- the shout
+     * P12 left this ring travelling outward. P13 catches it on the same
+     * envelope, so the section cut is invisible and the word arrives already
+     * standing on the ground it is about to label. */
+    if (sh2 > 0.01) {
+      const bp = ((MV.beatFloat(t) / 2) % 1 + 1) % 1;
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = sh2 * (1 - bp) * 0.30;
+      g.strokeStyle = VIO;
+      g.lineWidth = 3;
+      g.beginPath(); g.arc(960, 470, 240 + bp * 900, 0, TAU); g.stroke();
+      g.restore();
+    }
+
+    /* --------------------------------------------------------------- the map */
+    if (t > T0 - 0.40) {
+      MV.groundMap(g, MAP, { w: 15, h: 16 }, { z: zoom, x: MXW, y: MYW }, {
+        alpha: MV.ramp(t, T0 - 0.40, T0 + 0.35) * (1 - dim) * 0.95,
+        color: C.phosMid, px: 14, budget: 5400, ridge: true,
+      });
+    }
+
+    /* -------------------------------------------------------------- the scan
+     * A survey line walks down the frame and names whatever it has passed. It
+     * is the only reason a pit has a number: the map is not annotated, it is
+     * read, and it is read at a constant speed. */
+    const sc = MV.smooth(MV.ramp(t, 192.70, 199.30));
+    const scy = 68 + 936 * sc;
+    if (t > 192.60) {
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.50 * (1 - dim);
+      g.fillStyle = CY;
+      g.fillRect(0, scy - 1, 1920, 2);
+      g.globalAlpha = 0.13 * (1 - dim);
+      g.fillRect(0, scy, 1920, 36);
+      g.restore();
+    }
+
+    /* ------------------------------------------------------------ the basins
+     * A pit whose floor is higher than the ground already there is not a pit,
+     * it is a wrinkle, and it gets no name — MV.ground() leaves the winning
+     * basin in MV.GW, which is the whole test. */
+    let named = 0;
+    if (t > 192.60) {
+      for (let j = 1; j < NB; j++) {
+        const b = B[j];
+        const bw = CX0 + b[0], bh = CY0 + b[1];
+        MV.ground(bw, bh);
+        if (MV.GW.j !== j) continue;
+        const sx = SX(bw), sy = SY(bh);
+        if (sy > scy) continue;                       // not surveyed yet
+        named++;
+        const la = MV.ramp(scy, sy, sy + 26) * (1 - dim);
+        if (la <= 0.02 || sy < 96 || sy > 866) continue;
+        if (sx < 60 || sx > 1860) continue;
+        if (sx > 1480 && sy < 400) continue;          // the readout lives there
+        if (sx < 780 && sy > 780) continue;           // so does the verdict
+        const ox = (MV.hash2(j, 1, 3) - 0.5) * 46, oy = (MV.hash2(j, 2, 3) - 0.5) * 26;
+        g.save();
+        g.globalAlpha = la * 0.75;
+        g.fillStyle = C.cyanDim;
+        MV.mono(g, 13);
+        MV.picText(g, '+', sx - 4 + ox, sy + 4 + oy);
+        g.restore();
+        UI.label(g, 'L ' + b[4].toFixed(2), sx + 6 + ox, sy + oy, 13,
+          C.cyanDim, la * 0.8);
+      }
+    }
+
+    /* --------------------------------------------------------------- the word
+     * Painted on the floor of the valley, so it zooms with the ground: at the
+     * start it is the whole picture, and by the end it is a label on a map. */
+    const wpx = MV.clamp(96 / zoom, 44, 330);
+    const wadv = wpx * 0.633;
+    const wy0 = MV.lerp(560, CY0, MV.smoother(MV.ramp(t, T0, T0 + 2.4)));
+    const wa = MV.ramp(t, T0 - 0.40, T0 + 0.20) * (1 - dim);
+    if (wa > 0.004) {
+      const br = wpx * 2.8;
+      const rg = g.createRadialGradient(960, wy0, 0, 960, wy0, br);
+      rg.addColorStop(0, 'rgba(3,8,5,0.66)');
+      rg.addColorStop(0.5, 'rgba(3,8,5,0.34)');
+      rg.addColorStop(1, 'rgba(3,8,5,0)');
+      g.save();
+      g.globalAlpha = wa;
+      g.fillStyle = rg;
+      g.fillRect(960 - br, wy0 - br, br * 2, br * 2);
+      g.restore();
+      const wcol = sh2 > 0.35 ? WHT : VIO;
+      for (let i = 0; i < 8; i++) {
+        const lift = Math.sin(t * 6.6 - i * 0.78) * 15 * sh2;
+        UI.label(g, 'LO-O-OVE'.charAt(i), 960 - 3.5 * wadv + i * wadv, wy0 + lift,
+          wpx, wcol, wa * 0.97, { align: 'center', weight: 'bold',
+          glow: 14 + 22 * (wpx / 330) });
+      }
+      const lk = MV.ramp(t, 204.55, 205.20) * (1 - dim);
+      if (lk > 0.02) {
+        UI.label(g, 'global minimum   \u00b7   L 0.0000', 960,
+          wy0 - wpx * 0.80, 17, AM, lk * 0.9, { align: 'center', glow: 6 });
+      }
+    }
+
+    /* --------------------------------------------------------------- the path
+     * One descent route, found by actually walking down the hill from a point
+     * on the valley's flank: thirty px a step, with the step direction wobbling
+     * off the gradient and settling as it goes — which is what stochastic
+     * descent looks like from above. Cached, because it is a fact about the
+     * ground and not about the frame. */
+    if (!P13.P) {
+      const walk = function (ax, ay) {
+        const p = [];
+        let wx = ax, wy = ay;
+        for (let i = 0; i < 150; i++) {
+          p.push([wx, wy]);
+          const e = 4;
+          const fx = MV.ground(wx + e, wy) - MV.ground(wx - e, wy);
+          const fy = MV.ground(wx, wy + e) - MV.ground(wx, wy - e);
+          const n = Math.hypot(fx, fy) || 1;
+          const th = Math.sin(i * 1.7) * 0.62 * Math.exp(-i / 34);
+          const ct = Math.cos(th), st = Math.sin(th);
+          wx -= 30 * (fx * ct - fy * st) / n;
+          wy -= 30 * (fx * st + fy * ct) / n;
+          if (Math.hypot(wx - CX0, wy - CY0) < 10) { p.push([CX0, CY0]); break; }
+        }
+        return p;
+      };
+      let best = null, left = null;
+      for (let a = 0; a < 24; a++) {
+        const th = a / 24 * TAU + 0.4;
+        const p = walk(CX0 + Math.cos(th) * 620, CY0 + Math.sin(th) * 270);
+        if (!p.length) continue;
+        const e2 = p[p.length - 1];
+        if (Math.hypot(e2[0] - CX0, e2[1] - CY0) > 6) continue;   // not my valley
+        if (!best || p.length > best.length) best = p;
+        if (p[0][0] < CX0 && (!left || p.length > left.length)) left = p;
+      }
+      P13.P = left || best || [[CX0 - 200, CY0 - 60], [CX0, CY0]];
+    }
+    const PATH = P13.P;
+    if (t > 200.50 && PATH.length > 1) {
+      const n = PATH.length;
+      const head = Math.min(n - 1, Math.floor(dk * (n - 1)));
+      g.save();
+      g.lineWidth = 1.6;
+      g.lineCap = 'round';
+      for (let i = 0; i < head; i++) {
+        const old = 1 - (head - i) / n;
+        g.globalAlpha = (0.22 + 0.45 * old) * (1 - dim);
+        g.strokeStyle = i % 8 === 0 ? WHT : CY;
+        g.beginPath();
+        g.moveTo(SX(PATH[i][0]), SY(PATH[i][1]));
+        g.lineTo(SX(PATH[i + 1][0]), SY(PATH[i + 1][1]));
+        g.stroke();
+      }
+      g.restore();
+      MV.mono(g, 12);
+      for (let i = 0; i < head; i += 8) {
+        g.save();
+        g.globalAlpha = 0.5 * (1 - dim);
+        g.fillStyle = C.cyanDim;
+        MV.picText(g, '+', SX(PATH[i][0]) - 3, SY(PATH[i][1]) + 4);
+        g.restore();
+      }
+      const h0 = PATH[head];
+      const hx = SX(h0[0]), hy = SY(h0[1]);
+      const lost = MV.ground(h0[0], h0[1]);
+      const pl = 0.55 + 0.45 * MV.pulse(t, 0.42);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.6 * pl * (1 - dim);
+      g.fillStyle = dk < 1 ? CY : AM;
+      g.beginPath(); g.arc(hx, hy, 4.5, 0, TAU); g.fill();
+      g.globalAlpha = 0.18 * pl * (1 - dim);
+      g.filter = 'blur(9px)';
+      g.beginPath(); g.arc(hx, hy, 13, 0, TAU); g.fill();
+      g.filter = 'none';
+      g.restore();
+      const lx = hx + 200, ly = hy + 148;
+      g.save();
+      g.globalAlpha = (0.40 + 0.3 * pl) * (1 - dim);
+      g.strokeStyle = C.cyanDim;
+      g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(hx + 7, hy + 7); g.lineTo(lx - 5, ly - 5); g.stroke();
+      g.restore();
+      UI.label(g, 'me', lx, ly, 22, WHT, (1 - dim) * 0.95, { glow: 8 });
+      UI.label(g, 'L ' + lost.toFixed(4), lx + 42, ly, 15, AM, (1 - dim) * 0.95,
+        { glow: 4 });
+    }
+
+    /* ------------------------------------------------------------- the verdict */
+    const v1 = MV.ramp(t, 203.55, 204.25) * (1 - dim);
+    const v2 = MV.ramp(t, 204.15, 204.95) * (1 - dim);
+    if (v1 > 0.02) {
+      const bed = g.createLinearGradient(0, 790, 0, 910);
+      bed.addColorStop(0, 'rgba(3,8,5,0)');
+      bed.addColorStop(0.4, 'rgba(3,8,5,0.90)');
+      bed.addColorStop(1, 'rgba(3,8,5,0)');
+      g.save();
+      g.globalAlpha = v1;
+      g.fillStyle = bed;
+      g.fillRect(16, 786, 740, 128);
+      g.restore();
+      UI.label(g, (NB - 1) + ' local minima, one way down', 40, 836, 20,
+        C.phosDim, v1 * 0.92);
+      UI.label(g, 'it ends at the same word every time', 40, 872, 24, AM,
+        v2 * 0.95, { glow: 8 });
+    }
+
+    /* ---------------------------------------------------------------- panel
+     * A bed first: whatever the map is doing under the readout, the readout has
+     * to win, and the map's bands do not negotiate. */
+    if (1 - dim > 0.02) {
+      const pb = g.createLinearGradient(1500, 0, 1620, 0);
+      pb.addColorStop(0, 'rgba(3,8,5,0)');
+      pb.addColorStop(0.28, 'rgba(3,8,5,0.86)');
+      pb.addColorStop(1, 'rgba(3,8,5,0.86)');
+      g.save();
+      g.globalAlpha = 1 - dim;
+      g.fillStyle = pb;
+      g.fillRect(1490, 56, 430, 320);
+      g.restore();
+    }
+    let rows;
+    if (t < 199.45) {
+      rows = [
+        { k: 'basins', v: String(NB), c: CY },
+        { k: 'in view', v: named + ' of ' + NB, c: C.cyanDim },
+        { k: 'view', v: zoom.toFixed(2) + '\u00d7', c: C.cyanDim },
+        { k: 'global min', v: 'L 0.0000', c: AM, bold: true },
+      ];
+    } else if (t < 203.55) {
+      rows = [
+        { k: 'local minima', v: String(NB - 1), c: VIO },
+        { k: 'explored', v: '1', c: C.cyanDim },
+        { k: 'escapes', v: '0', c: RDD, bold: true },
+        { k: 'descent', v: Math.round(dk * 100) + '%', c: PH },
+      ];
+    } else {
+      rows = [
+        { k: 'descent', v: 'complete', c: PH },
+        { k: 'L', v: '0.0000', c: AM, bold: true },
+        { k: 'gradient', v: '0.0000', c: C.cyanDim },
+        { k: 'me', v: 'still here', c: PH, bold: true },
+      ];
+    }
+    UI.panel(g, t, rows, { title: 'TERRAIN', alpha: 1 - dim });
+  }

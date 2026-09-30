@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>world.execute(me); — CRT</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; background: #000;
+    width: 1920px; height: 1080px; overflow: hidden;
+  }
+  #stage { width: 1920px; height: 1080px; position: relative; }
+  #stage canvas { position: absolute; left: 0; top: 0; display: block; }
+  #boot {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    color: #39ff88; background: #000;
+    font: 20px/1.6 Consolas, "Courier New", monospace;
+    padding: 40px; box-sizing: border-box; white-space: pre;
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="boot">booting…</div></div>
+
+<script src="data/timeline.js"></script>
+<script src="data/audio.js"></script>
+<script src="core.js"></script>
+<script src="ui.js"></script>
+<script src="crt.js"></script>
+<script src="field.js"></script>
+<script src="art.js"></script>
+<script src="ml.js"></script>
+<script src="scenes.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

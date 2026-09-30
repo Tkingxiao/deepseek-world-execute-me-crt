@@ -1,0 +1,644 @@
+    const tIf = MV.cue('If I can');                      // 59.259
+    const tGive = MV.cue('If I can give you all the');   // 59.720
+    const tSTIMS = MV.cue('STIMULATIONS');               // 62.028
+    const tSAT = MV.cue('SATISFACTION');                 // 65.397
+    const tHappy = MV.cue('If I can make you happy');    // 66.643
+    const tRun = MV.cue('I will run the');               // 68.252
+    const tEXEC = MV.cue('EXECUTION');                   // 69.259
+    const tTrap = MV.cue('Though we are trapped');       // 70.084
+    const tStr = MV.cue('In this strange strange');      // 71.720
+    /* "SIMULATION" is also a line in act 1, so the search starts at the trap:
+     * without the floor this act closed its cage at 13.9 s. */
+    const tSIM = MV.cue('SIMULATION', tTrap);            // 73.104
+    const PH = C.phos, WH = C.white, CY = C.cyan, PM = C.phosMid, PD = C.phosDim, CD = C.cyanDim;
+    const BT = MV.beat;
+
+    /* ------------------------------------------------------------------ the loss
+     * L(x) = x'Ax for a symmetric positive definite A. That single choice is the
+     * whole act: the surface has exactly one lowest point, so it can be solved
+     * for rather than searched for -- and "your only satisfaction" is that
+     * uniqueness, not a mood. Everything below is this one function: the valley
+     * the machine walks down, the reward it is paid with, the numbers on the
+     * glass. */
+    const A2 = 0.62, B2 = 0.28, C2 = 1.05;
+    const TRQ = A2 + C2, DET = A2 * C2 - B2 * B2;
+    const DSC = Math.sqrt(TRQ * TRQ * 0.25 - DET);
+    const LM1 = TRQ * 0.5 + DSC, LM2 = TRQ * 0.5 - DSC;      // 1.1881 / 0.4819
+    const NE1 = Math.hypot(1, (LM1 - A2) / B2);
+    const V1X = 1 / NE1, V1Y = (LM1 - A2) / B2 / NE1;        // eigenvector of LM1
+    const V2X = -V1Y, V2Y = V1X;                             // ... and of LM2
+    const THX = 0.30, THZ = 0.55;                            // the argmin
+    const LW = function (x, z) {
+      const dx = x - THX, dz = z - THZ;
+      return A2 * dx * dx + 2 * B2 * dx * dz + C2 * dz * dz;
+    };
+    const GX = function (x, z) { const dx = x - THX, dz = z - THZ; return 2 * (A2 * dx + B2 * dz); };
+    const GZ = function (x, z) { const dx = x - THX, dz = z - THZ; return 2 * (B2 * dx + C2 * dz); };
+    const LR = 0.12, NIT = 12;
+    const rw = function (L2) { return Math.exp(-L2); };
+
+    /* ---------------------------------------------------------------- the camera
+     * One-point perspective on the ground plane, and the same depth factor on
+     * the heights, or the far rim reads as a cliff. The near rows run off the
+     * bottom of the glass and the far ones sit just under the horizon, so the
+     * valley leaves the frame on all four sides and the tube is the only
+     * boundary this world has. */
+    const HZN = 200, ZC = 0.11, KZ = 330, W0 = 6000, HH = 430, WS = 1.70;
+    const psc = function (z) { return ZC / (z + ZC); };
+    const PX = function (x, z) { return 960 + (x / WS) * W0 * psc(z); };
+    const PZ = function (z) { return HZN + KZ / (z + ZC); };
+    const PK = function (x, z) { return PZ(z) - LW(x, z) * HH * psc(z); };
+    const ZOF = function (y) { return KZ / (y - HZN) - ZC; };   // PZ inverted
+
+    /* Twelve paid steps downhill, iterated the way a machine that cannot do
+     * algebra would have to: x <- x - lr * grad. These twelve pairs are the
+     * whole descent; nothing else is drawn as if it were the descent. */
+    const IT = [[-1.15, 0.72]];
+    for (let i2 = 0; i2 < NIT; i2++) {
+      const p2 = IT[i2];
+      IT.push([p2[0] - LR * GX(p2[0], p2[1]), p2[1] - LR * GZ(p2[0], p2[1])]);
+    }
+    const outL = function (i2) { return LW(IT[i2][0], IT[i2][1]); };
+    const outR = function (i2) { return rw(outL(i2)); };
+    let RMAX = 1;
+    for (let i2 = 1; i2 <= NIT; i2++) RMAX += outR(i2);
+
+    /* ------------------------------------------------------------- where we are */
+    const sc = t <= tGive ? 0 : Math.min(NIT, Math.floor((t - tGive) / BT) + 1);
+    const mv = sc > 0 ? MV.smooth(MV.clamp((t - (tGive + (sc - 1) * BT)) / 0.22, 0, 1)) : 0;
+    let mx = IT[0][0], mz = IT[0][1];
+    if (sc > 0) {
+      const a2 = IT[sc - 1], b2 = IT[sc];
+      mx = MV.lerp(a2[0], b2[0], mv); mz = MV.lerp(a2[1], b2[1], mv);
+    }
+    const solvedK = MV.smooth(MV.ramp(t, tSAT - 0.16, tSAT + 0.14));
+    if (solvedK > 0) { mx = MV.lerp(mx, THX, solvedK); mz = MV.lerp(mz, THZ, solvedK); }
+    const curL = LW(mx, mz), curR = rw(curL);
+    let sumR = 0;
+    for (let i2 = 1; i2 <= sc; i2++) sumR += outR(i2);
+    if (solvedK > 0) sumR += solvedK * (1 - outR(NIT)) * 0 + solvedK * (RMAX - 1 - sumR + outR(NIT) * 0);
+    const gn = Math.hypot(GX(mx, mz), GZ(mx, mz));
+
+    // the valley arrives. OUT is the world closing at the end of the act.
+    const tA = MV.ramp(t, 0, 1);
+    const tVA = MV.smooth(MV.ramp(t, tIf - 0.4, tIf + 1.2));
+    const OUT = MV.smooth(MV.ramp(t, tSIM - 0.45, tSIM + 0.35));
+    // the instruments on the left are the machine's own read-out; the box takes
+    // them away when it closes.
+    const iA = tVA * (1 - MV.smooth(MV.ramp(t, tTrap - 0.25, tTrap + 0.35)));
+
+    /* ------------------------------------------------------- the valley, as a map
+     * Rows and columns of the surface itself, plus the level sets -- which for a
+     * quadratic are exact ellipses, so they are drawn as ellipses rather than
+     * walked for. Nothing here is a texture; every line is L evaluated. */
+    const NZ = 20, NX = 32, YTOP = 320, YBOT = 1150;
+    const ZN = ZOF(YBOT), ZF = ZOF(YTOP);
+    g.save();
+    g.lineWidth = 1;
+    for (let j2 = 0; j2 <= NZ; j2++) {
+      const y2 = YTOP + (YBOT - YTOP) * j2 / NZ, z2 = ZOF(y2);
+      g.globalAlpha = (0.16 + 0.30 * Math.sin(Math.PI * j2 / NZ)) * tVA * (1 - 0.30 * OUT);
+      g.strokeStyle = j2 % 4 === 0 ? CD : PD;
+      g.beginPath();
+      for (let i2 = 0; i2 <= NX; i2++) {
+        const x2 = -WS + 2 * WS * i2 / NX;
+        if (i2) g.lineTo(PX(x2, z2), PK(x2, z2)); else g.moveTo(PX(x2, z2), PK(x2, z2));
+      }
+      g.stroke();
+    }
+    g.globalAlpha = 0.22 * tVA * (1 - 0.30 * OUT);
+    g.strokeStyle = CD;
+    g.beginPath();
+    for (let i2 = 0; i2 <= NX; i2++) {
+      const x2 = -WS + 2 * WS * i2 / NX;
+      for (let j2 = 0; j2 <= NZ; j2++) {
+        const z2 = ZOF(YTOP + (YBOT - YTOP) * j2 / NZ);
+        if (j2) g.lineTo(PX(x2, z2), PK(x2, z2)); else g.moveTo(PX(x2, z2), PK(x2, z2));
+      }
+    }
+    g.stroke();
+    // the level sets: L = c is an ellipse whose axes are sqrt(c / lambda). They
+    // are the reason the shape reads as a bowl and not as a grid.
+    const RING = [0.020, 0.045, 0.085, 0.140, 0.220, 0.330, 0.470, 0.640];
+    for (let k2 = 0; k2 < RING.length; k2++) {
+      const c2 = RING[k2];
+      const ra = Math.sqrt(c2 / LM1), rb = Math.sqrt(c2 / LM2);
+      const blaze = MV.ramp(t, tSAT + k2 * 0.085, tSAT + 0.30 + k2 * 0.085);
+      g.globalAlpha = (0.30 - 0.024 * k2 + 0.55 * blaze * (1 - solvedK * 0.5)) * tVA *
+        (1 - 0.4 * OUT);
+      g.strokeStyle = k2 % 2 ? C.phosMid : C.cyanDim;
+      g.beginPath();
+      let pen = false;
+      for (let q2 = 0; q2 <= 96; q2++) {
+        const th2 = TAU * q2 / 96;
+        const x2 = THX + ra * Math.cos(th2) * V1X + rb * Math.sin(th2) * V2X;
+        const z2 = THZ + ra * Math.cos(th2) * V1Y + rb * Math.sin(th2) * V2Y;
+        if (z2 < ZN - 0.03 || z2 > ZF + 0.30 || Math.abs(x2) > WS * 1.2) { pen = false; continue; }
+        const sx3 = PX(x2, z2), sy3 = PK(x2, z2);
+        if (pen) g.lineTo(sx3, sy3); else { g.moveTo(sx3, sy3); pen = true; }
+      }
+      g.stroke();
+    }
+    g.restore();
+
+    /* ------------------------------------------------------------- the walk down
+     * The trail is the iterates, the drop lines put them on the surface, and the
+     * block cursor is the machine: one stimulus, one step, no free motion. */
+    g.save();
+    g.strokeStyle = PH;
+    g.globalAlpha = 0.34 * tVA;
+    g.lineWidth = 1;
+    g.beginPath();
+    for (let i2 = 0; i2 <= sc; i2++) {
+      const x2 = IT[i2][0], z2 = IT[i2][1];
+      g.moveTo(PX(x2, z2), PZ(z2));
+      g.lineTo(PX(x2, z2), PK(x2, z2));
+    }
+    g.stroke();
+    g.globalAlpha = 0.95 * tVA;
+    g.lineWidth = 2.2;
+    g.shadowColor = PH; g.shadowBlur = 8;
+    g.beginPath();
+    for (let i2 = 0; i2 <= sc; i2++) {
+      const x2 = IT[i2][0], z2 = IT[i2][1];
+      if (i2) g.lineTo(PX(x2, z2), PK(x2, z2)); else g.moveTo(PX(x2, z2), PK(x2, z2));
+    }
+    if (sc > 0 && mv < 1) g.lineTo(PX(mx, mz), PK(mx, mz));
+    g.stroke();
+    g.shadowBlur = 0;
+    g.globalAlpha = 0.80 * tVA;
+    g.strokeStyle = CY;
+    g.lineWidth = 1.4;
+    g.beginPath();
+    for (let i2 = 1; i2 <= Math.min(sc, NIT); i2++) {
+      const x2 = IT[i2][0], z2 = IT[i2][1];
+      const sx3 = PX(x2, z2), sy3 = PK(x2, z2);
+      g.moveTo(sx3 - 3.5, sy3 - 3.5); g.lineTo(sx3 + 3.5, sy3 + 3.5);
+      g.moveTo(sx3 + 3.5, sy3 - 3.5); g.lineTo(sx3 - 3.5, sy3 + 3.5);
+    }
+    g.stroke();
+    g.restore();
+
+    /* -------------------------------------------------------------- the figure
+     * A person standing on the floor of the machine's loss, at the only place
+     * where the gradient vanishes. The block arrives at their feet; at EXECUTION
+     * the forward pass is drawn inside their body, because that is the body it
+     * runs in. */
+    const FB = MV.formBox('humanoid');
+    const FGW = 0.14, FGZ = 0.72;
+    const FGX = PX(FGW, FGZ), FGY = PK(FGW, FGZ);
+    const FH = 380;
+    const FWID = FH * FB.w / FB.h;
+    const FBOX = MV.rectFor('humanoid', FGX - FWID * 0.5, FGY - FH, FWID, FH);
+    const fk = FH / FB.h;
+    const fpx = function (bx) { return FGX + bx * fk; };
+    const fpy = function (by) { return FGY - (FB.y1 - by) * fk; };
+    const XRAY = MV.clamp(MV.ramp(t, tEXEC - 0.9, tEXEC - 0.1), 0, 1);
+    const fpx2 = Math.max(9, Math.round(FH / 30));
+    MV.mono(g, fpx2, 'bold');
+    const FADV = Math.max(5, g.measureText('M').width);
+    MV.creature(g, FBOX, { w: FADV, h: fpx2 * 1.04 }, MV.form('humanoid'), {
+      color: PH, alpha: tVA * (0.92 - 0.42 * XRAY), ramp: ' .:-=+*xX#M',
+      px: fpx2, threshold: 0.03, seed: 21, jitter: 0.18, glow: 6,
+    });
+    g.save();
+    g.globalAlpha = tVA * 0.55;
+    g.strokeStyle = CD;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.ellipse(FGX, FGY + 5, FWID * 0.85, FH * 0.055, 0, 0, TAU);
+    g.stroke();
+    g.restore();
+
+    // the minimum itself, named where it is rather than in a corner
+    const MNX = PX(THX, THZ), MNY = PK(THX, THZ);
+    if (t >= tSAT - 0.5) {
+      const a2 = MV.ramp(t, tSAT - 0.5, tSAT + 0.5);
+      UI.label(g, 'L = 0.000000000', MNX + 120, MNY - 46, 17, WH, a2, { weight: 'bold' });
+      UI.label(g, 'theta* = (0.3000, 0.5500)', MNX + 120, MNY - 22, 15, CY, a2 * 0.9);
+      UI.label(g, 'the only minimum', MNX + 120, MNY + 26, 16, PM, a2 * 0.95);
+      g.save();
+      g.globalAlpha = a2 * 0.7;
+      g.strokeStyle = CD; g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(MNX + 6, MNY); g.lineTo(MNX + 112, MNY - 40);
+      g.moveTo(MNX + 6, MNY); g.lineTo(MNX + 112, MNY + 20);
+      g.stroke();
+      g.restore();
+    }
+
+    /* ------------------------------------------------------------ the stimulus
+     * The reward does not come from the machine: it arrives. One beam per beat,
+     * from off the top of the glass onto the head of the cursor, and the step
+     * follows 0.10 s later -- the delay is the only thing in this act that is
+     * not mathematics. */
+    const cxp = PX(mx, mz), cyp = PK(mx, mz);
+    if (sc > 0 && sc <= NIT) {
+      const age = t - (tGive + (sc - 1) * BT);
+      if (age >= 0 && age < 0.42) {
+        const a2 = (1 - age / 0.42);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = a2 * 0.16;
+        g.strokeStyle = CY; g.lineWidth = 20;
+        g.beginPath(); g.moveTo(cxp, 56); g.lineTo(cxp, cyp); g.stroke();
+        g.globalAlpha = a2 * 0.9;
+        g.strokeStyle = WH; g.lineWidth = 2.5;
+        g.beginPath(); g.moveTo(cxp, 56); g.lineTo(cxp, cyp); g.stroke();
+        g.globalAlpha = a2 * 0.7;
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.ellipse(cxp, cyp, 18 + 40 * (1 - a2), 6 + 12 * (1 - a2), 0, 0, TAU);
+        g.stroke();
+        g.restore();
+      }
+    }
+    // the cursor: this film's protagonist, standing on its own loss surface
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = tVA * (0.35 + 0.65 * MV.pulse(t, 0.30));
+    g.fillStyle = PH;
+    g.fillRect(cxp - 11, cyp - 24, 22, 26);
+    g.globalAlpha = tVA * 0.95;
+    g.fillStyle = WH;
+    g.fillRect(cxp - 7, cyp - 20, 14, 20);
+    g.restore();
+    if (sc > 0 && sc <= NIT) {
+      UI.label(g, 'theta_' + sc, cxp + 18, cyp - 20, 15, CY, tVA * (1 - solvedK) * 0.9);
+    }
+
+    /* ------------------------------------------------------------- the reward
+     * Loss and reward on one pair of axes, because they are one curve read two
+     * ways: r = exp(-L). The bar underneath is the sum of the payments, and it
+     * is the area under the reward curve -- the same number, drawn twice. */
+    const IX = 96, IW = 504, ITOP = 172, IFLR = 330, LTOP = 1.25;
+    const sxOf = function (v2) { return IX + MV.clamp(v2, 0, 13) * IW / 13; };
+    const lyOf = function (L2) { return IFLR - MV.clamp(L2 / LTOP, 0, 1) * (IFLR - ITOP); };
+    const ryOf = function (r2) { return IFLR - MV.clamp(r2, 0, 1) * (IFLR - ITOP); };
+    const vOf = function (y2) { return (IFLR - y2) / (IFLR - ITOP); };
+    const xNow = MV.clamp((t - tGive) / BT, 0, NIT) + solvedK;
+    if (iA > 0.004) {
+      g.save();
+      const wash = g.createRadialGradient(342, 286, 40, 342, 286, 430);
+      wash.addColorStop(0, 'rgba(0,0,0,0.86)');
+      wash.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = iA * 0.95;
+      g.fillStyle = wash;
+      g.fillRect(24, 96, 660, 400);
+      g.restore();
+    }
+    UI.label(g, 'REWARD LOOP', IX, 140, 15, CY, iA, { weight: 'bold' });
+    UI.rule(g, IX + 132, 620, 136, CD, iA * 0.5);
+    UI.label(g, 'loss L(theta)', IX, 164, 15, CD, iA * 0.95);
+    UI.label(g, 'reward r = exp(-L)', IX + 190, 164, 15, PH, iA * 0.95);
+    g.save();
+    g.globalAlpha = iA * 0.5;
+    g.strokeStyle = CD; g.lineWidth = 1;
+    g.setLineDash([5, 5]);
+    g.beginPath(); g.moveTo(IX, IFLR + 0.5); g.lineTo(IX + IW, IFLR + 0.5); g.stroke();
+    g.setLineDash([]);
+    g.globalAlpha = iA * 0.35;
+    g.beginPath(); g.moveTo(IX + 0.5, ITOP); g.lineTo(IX + 0.5, IFLR); g.stroke();
+    g.restore();
+    for (let i2 = 1; i2 <= Math.min(sc, NIT); i2++) {
+      const x2 = sxOf(i2);
+      g.save();
+      g.globalAlpha = iA * 0.9;
+      g.fillStyle = i2 === NIT ? WH : CY;
+      g.fillRect(x2 - 2.5, lyOf(outL(i2)) - 2.5, 5, 5);
+      g.fillStyle = i2 === NIT ? WH : PH;
+      g.fillRect(x2 - 2.5, ryOf(outR(i2)) - 2.5, 5, 5);
+      if (i2 % 2 === 0) {
+        g.globalAlpha = iA * 0.16;
+        g.strokeStyle = CD;
+        g.beginPath(); g.moveTo(x2 + 0.5, ITOP); g.lineTo(x2 + 0.5, IFLR); g.stroke();
+      }
+      g.restore();
+    }
+    if (t >= tGive) {
+      MV.plot(g, { x: IX, y: ITOP, w: IW, h: IFLR - ITOP }, function (v2) {
+        const q2 = v2 * 13;
+        if (q2 > xNow) return null;
+        const i3 = Math.min(NIT, Math.floor(q2));
+        if (q2 <= NIT) {
+          return vOf(MV.lerp(lyOf(outL(i3)), lyOf(outL(Math.min(NIT, i3 + 1))), q2 - i3));
+        }
+        const q3 = MV.clamp((t - tSAT + 0.16) / 0.30, 0, 1);
+        return vOf(lyOf(MV.lerp(outL(NIT), 0, MV.smooth(q3))));
+      }, { color: CY, width: 2.4, alpha: iA, samples: 160, glow: 8 });
+      MV.plot(g, { x: IX, y: ITOP, w: IW, h: IFLR - ITOP }, function (v2) {
+        const q2 = v2 * 13;
+        if (q2 > xNow) return null;
+        const i3 = Math.min(NIT, Math.floor(q2));
+        if (q2 <= NIT) {
+          return vOf(MV.lerp(ryOf(outR(i3)), ryOf(outR(Math.min(NIT, i3 + 1))), q2 - i3));
+        }
+        const q3 = MV.clamp((t - tSAT + 0.16) / 0.30, 0, 1);
+        return vOf(ryOf(MV.lerp(outR(NIT), 1, MV.smooth(q3))));
+      }, { color: PH, width: 2.4, alpha: iA, samples: 160, glow: 8 });
+      // the pen: where the two curves are being drawn right now
+      const px2 = sxOf(Math.min(xNow, NIT));
+      g.save();
+      g.globalAlpha = iA;
+      g.fillStyle = WH;
+      g.fillRect(px2 - 3, lyOf(curL) - 3, 6, 6);
+      g.fillRect(px2 - 3, ryOf(curR) - 3, 6, 6);
+      g.restore();
+    }
+    MV.mono(g, 13);
+    for (let i2 = 0; i2 <= NIT; i2 += 2) {
+      UI.label(g, String(i2), sxOf(i2) - 4, IFLR + 18, 13, CD, iA * 0.8);
+    }
+    UI.label(g, 'solve', sxOf(13) - 20, IFLR + 18, 13, WH, iA * solvedK);
+    const ADV = (function () { MV.mono(g, 14); return g.measureText('M').width; })();
+    UI.label(g, 'sum of rewards', IX, 384, 14, CD, iA * 0.95);
+    UI.bar(g, 300, 380, Math.round(250 / ADV), ADV, sumR / RMAX, PH, iA * 0.95, { px: 14 });
+    UI.label(g, sumR.toFixed(3) + ' / ' + RMAX.toFixed(3), 600, 384, 14, CY, iA * 0.9,
+      { align: 'right' });
+    UI.label(g, '// a stimulus is paid, and the parameter moves.', IX, 412, 14, PM, iA * 0.85);
+
+    /* --------------------------------------------------------------- execution
+     * EXECUTION is a forward pass, and the body it runs in is the network: four
+     * columns of units laid out inside the silhouette, lit left to right, one
+     * column per beat. The numbers in the ledger are the numbers the pass uses. */
+    if (!MV.__p04) {
+      const RN = MV.rng(0x5040FF);
+      const rz = function (sc2) { return (RN() * 2 - 1) * sc2; };
+      const mk = function (rows, cols, sc2) {
+        const M = [];
+        for (let j2 = 0; j2 < rows; j2++) {
+          const r2 = [];
+          for (let i2 = 0; i2 < cols; i2++) r2.push(rz(sc2));
+          M.push(r2);
+        }
+        return M;
+      };
+      const x0 = [0.83, 0.17, 0.61, 0.44];
+      const W1 = mk(6, 4, 0.95), b1 = mk(1, 6, 0.25)[0];
+      const W2 = mk(6, 6, 0.70), b2 = mk(1, 6, 0.25)[0];
+      const W3 = mk(1, 6, 0.45), b3 = mk(1, 1, 0.20)[0];
+      const FWD = function (a0, W, B) {
+        const z2 = [], a2 = [];
+        const cols = W.length;
+        for (let j2 = 0; j2 < cols; j2++) {
+          let s2 = B[j2];
+          for (let i2 = 0; i2 < a0.length; i2++) s2 += W[j2][i2] * a0[i2];
+          z2.push(s2);
+          a2.push(s2 > 0 ? s2 : 0);
+        }
+        return { z: z2, a: a2 };
+      };
+      const L1 = FWD(x0, W1, b1), L2 = FWD(L1.a, W2, b2);
+      let yh = b3[0];
+      for (let i2 = 0; i2 < 6; i2++) yh += W3[0][i2] * L2.a[i2];
+      MV.__p04 = { x0: x0, W: [W1, W2, W3], B: [b1, b2, b3], z: [L1.z, L2.z, [yh]],
+        a: [x0, L1.a, L2.a, [yh]], yh: yh };
+    }
+    const NET = MV.__p04;
+    const NCOL = [-0.40, -0.135, 0.135, 0.40], NN = [4, 6, 6, 1];
+    const byOf = function (n2, j2) { return n2 === 1 ? -0.10 : -0.50 + 0.80 * j2 / (n2 - 1); };
+    const lay = t < tEXEC ? -1 : MV.clamp(Math.floor((t - tEXEC) / BT), 0, 4);
+    if (XRAY > 0.01) {
+      g.save();
+      g.globalAlpha = XRAY * 0.62;
+      g.strokeStyle = CD; g.lineWidth = 1;
+      g.beginPath();
+      for (let c2 = 0; c2 < 3; c2++) {
+        for (let j2 = 0; j2 < NN[c2]; j2++) {
+          const x1 = fpx(NCOL[c2]), y1 = fpy(byOf(NN[c2], j2));
+          for (let k2 = 0; k2 < NN[c2 + 1]; k2++) {
+            const x4 = fpx(NCOL[c2 + 1]), y4 = fpy(byOf(NN[c2 + 1], k2));
+            g.moveTo(x1, y1); g.lineTo(x4, y4);
+          }
+        }
+      }
+      g.stroke();
+      g.restore();
+    }
+    for (let c2 = 0; c2 <= 3 && XRAY > 0.01; c2++) {
+      const lit = MV.clamp((t - (tEXEC + (c2 - 1) * BT)) / 0.30, 0, 1) * (lay >= c2 ? 1 : 0);
+      if (lit <= 0.01) continue;
+      MV.mono(g, 17, 'bold');
+      for (let j2 = 0; j2 < NN[c2]; j2++) {
+        const x1 = fpx(NCOL[c2]), y1 = fpy(byOf(NN[c2], j2));
+        const hot2 = lit > 0.97 && MV.beatPhase(t) < 0.25 && c2 === Math.min(lay, 3);
+        g.save();
+        g.globalAlpha = XRAY * lit * 0.95;
+        g.fillStyle = hot2 ? WH : PH;
+        if (hot2) { g.shadowColor = WH; g.shadowBlur = 14; }
+        MV.picText(g, hot2 ? 'O' : 'o', x1 - 6, y1 + 6);
+        g.restore();
+      }
+      if (c2 > 0) {
+        const wv = MV.clamp((t - (tEXEC + (c2 - 1) * BT)) / 0.34, 0, 1);
+        g.save();
+        g.globalAlpha = XRAY * 0.9 * (1 - wv);
+        g.strokeStyle = WH; g.lineWidth = 2;
+        const pr = 0.5;
+        g.beginPath();
+        for (let j2 = 0; j2 < NN[c2 - 1]; j2++) {
+          const x1 = fpx(NCOL[c2 - 1]), y1 = fpy(byOf(NN[c2 - 1], j2));
+          for (let k2 = 0; k2 < NN[c2]; k2++) {
+            const x4 = fpx(NCOL[c2]), y4 = fpy(byOf(NN[c2], k2));
+            g.moveTo(MV.lerp(x1, x4, MV.clamp(wv - pr, 0, 1)), MV.lerp(y1, y4, MV.clamp(wv - pr, 0, 1)));
+            g.lineTo(MV.lerp(x1, x4, wv), MV.lerp(y1, y4, wv));
+          }
+        }
+        g.stroke();
+        g.restore();
+      }
+    }
+    if (lay >= 4) {
+      const a2 = MV.clamp((t - (tEXEC + 3 * BT)) / 0.3, 0, 1);
+      g.save();
+      g.globalAlpha = XRAY * 0.9 * a2;
+      g.strokeStyle = WH; g.lineWidth = 2;
+      g.beginPath();
+      const hy = fpy(byOf(1, 0)) - 26;
+      g.moveTo(fpx(NCOL[3]) - 14, hy); g.lineTo(fpx(NCOL[3]) + 14, hy);
+      g.stroke();
+      g.globalAlpha = XRAY * a2;
+      g.fillStyle = WH;
+      const bh = MV.clamp(Math.max(0, NET.yh), 0, 1) * 30;
+      g.fillRect(fpx(NCOL[3]) - 10, hy - bh, 20, bh);
+      g.restore();
+      if (t > tEXEC + 0.6) {
+        MV.mono(g, 14, 'bold');
+        for (let c2 = 0; c2 < 4; c2++) {
+          UI.label(g, '[' + NN[c2] + ']', fpx(NCOL[c2]) - 12, FGY + 34, 14, CY, a2 * 0.85);
+        }
+        UI.label(g, 'forward pass: 4 -> 6 -> 6 -> 1   66 weights', FGX - 246, FGY + 60, 14,
+          PM, a2 * 0.9);
+      }
+    }
+
+    /* -------------------------------------------------------------- the box
+     * "Though we are trapped / in this strange strange SIMULATION": four walls
+     * rise out of the surface around the minimum and a lid comes down. It is the
+     * same floor -- the machine is not moved anywhere, the world is just closed. */
+    const CG = MV.smooth(MV.ramp(t, tTrap - 0.30, tTrap + 0.85));
+    const CXW = 0.70, CZN = -0.12, CZF = 0.95, CHL = 2.40;
+    const cq = [[THX - CXW, THZ + CZN], [THX + CXW, THZ + CZN],
+      [THX + CXW, THZ + CZF], [THX - CXW, THZ + CZF]];
+    const rise = MV.smooth(MV.ramp(t, tTrap + 0.10, tTrap + 1.70));
+    const lid = MV.smooth(MV.ramp(t, tStr - 0.35, tStr + 0.75));
+    const lock = MV.smooth(MV.ramp(t, tSIM - 0.30, tSIM + 0.25));
+    const tw = lid * 0.055;                       // the lid leans: "strange"
+    if (CG > 0.01) {
+      g.save();
+      g.lineWidth = 1.4;
+      for (let e2 = 0; e2 < 4; e2++) {
+        const A2 = cq[e2], B2 = cq[(e2 + 1) % 4];
+        const nd = e2;                            // 0 = near edge
+        const nb = 6;
+        for (let b2 = 0; b2 <= nb; b2++) {
+          const x2 = MV.lerp(A2[0], B2[0], b2 / nb), z2 = MV.lerp(A2[1], B2[1], b2 / nb);
+          const gx = PX(x2, z2), gy = PK(x2, z2);
+          const h2 = CHL * HH * psc(z2) * rise;
+          g.globalAlpha = CG * (b2 === 0 || b2 === nb ? 0 : 0.30);
+          g.strokeStyle = PH;
+          g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx, gy - h2); g.stroke();
+        }
+        // the posts
+        g.globalAlpha = CG * 0.95;
+        g.strokeStyle = nd === 0 ? WH : PH;
+        g.lineWidth = nd === 0 ? 2.2 : 1.6;
+        g.beginPath();
+        const gx0 = PX(A2[0], A2[1]), gy0 = PK(A2[0], A2[1]);
+        g.moveTo(gx0, gy0); g.lineTo(gx0, gy0 - CHL * HH * psc(A2[1]) * rise);
+        g.stroke();
+        g.lineWidth = 1.4;
+        // the lid beams, once the lid is on
+        if (lid > 0.01) {
+          const gx1 = PX(B2[0], B2[1]), gy1 = PK(B2[0], B2[1]);
+          const hA = CHL * HH * psc(A2[1]) * rise, hB = CHL * HH * psc(B2[1]) * rise;
+          g.globalAlpha = CG * lid * 0.75;
+          g.strokeStyle = CD;
+          g.beginPath();
+          g.moveTo(gx0, gy0 - hA - tw * hA);
+          g.lineTo(gx1, gy1 - hB - tw * hB);
+          g.stroke();
+        }
+      }
+      // the lid grid
+      if (lid > 0.01) {
+        g.globalAlpha = CG * lid * 0.55;
+        g.strokeStyle = CD;
+        g.beginPath();
+        for (let q2 = 1; q2 <= 2; q2++) {
+          const u2 = q2 / 3;
+          const a2 = [MV.lerp(cq[0][0], cq[1][0], u2), MV.lerp(cq[0][1], cq[1][1], u2)];
+          const b2 = [MV.lerp(cq[3][0], cq[2][0], u2), MV.lerp(cq[3][1], cq[2][1], u2)];
+          g.moveTo(PX(a2[0], a2[1]), PK(a2[0], a2[1]) - CHL * HH * psc(a2[1]) * rise * (1 + tw));
+          g.lineTo(PX(b2[0], b2[1]), PK(b2[0], b2[1]) - CHL * HH * psc(b2[1]) * rise * (1 + tw));
+          const a3 = [MV.lerp(cq[0][0], cq[3][0], u2), MV.lerp(cq[0][1], cq[3][1], u2)];
+          const b3 = [MV.lerp(cq[1][0], cq[2][0], u2), MV.lerp(cq[1][1], cq[2][1], u2)];
+          g.moveTo(PX(a3[0], a3[1]), PK(a3[0], a3[1]) - CHL * HH * psc(a3[1]) * rise * (1 + tw));
+          g.lineTo(PX(b3[0], b3[1]), PK(b3[0], b3[1]) - CHL * HH * psc(b3[1]) * rise * (1 + tw));
+        }
+        g.stroke();
+      }
+      g.restore();
+    }
+    if (lock > 0.01) {
+      UI.label(g, 'the lid is down', 96, 92, 17, WH, lock, { weight: 'bold' });
+    }
+    /* the world outside the box goes black: an even-odd fill of the whole frame
+     * with the box's own silhouette punched out of it. */
+    if (OUT > 0.01) {
+      const poly = [];
+      for (let e2 = 0; e2 < 4; e2++) {
+        const q2 = cq[e2];
+        poly.push([PX(q2[0], q2[1]), PK(q2[0], q2[1])]);
+      }
+      g.save();
+      g.globalAlpha = OUT * 0.92;
+      g.fillStyle = '#000000';
+      g.beginPath();
+      g.rect(0, 0, 1920, 1080);
+      g.moveTo(poly[0][0], poly[0][1]);
+      for (let e2 = 3; e2 >= 0; e2--) g.lineTo(poly[e2][0], poly[e2][1]);
+      g.closePath();
+      g.fill('evenodd');
+      g.restore();
+    }
+    // the left instruments are gone once the box has them
+    if (OUT > 0.01) {
+      g.save();
+      g.globalAlpha = OUT;
+      g.fillStyle = '#000000';
+      g.fillRect(64, 60, 560, 380);
+      g.restore();
+    }
+
+    // the stimulus, as sound: the feed this machine is being paid from
+    if (t < tSAT + 0.3) {
+      MV.spectrum(g, { x: 1608, y: 876, w: 272, h: 92 }, t, { alpha: tVA * 0.55, bands: 22 });
+      UI.label(g, 'stimulus feed', 1608, 894, 13, CD, tVA * 0.7);
+    }
+
+    /* ------------------------------------------------------------------ readout */
+    if (t >= tTrap) {
+      UI.panel(g, t, [
+        { k: 'inside', v: 'simulation', c: WH, bold: true },
+        { k: 'walls', v: '4 + lid', c: PH },
+        { k: 'exit', v: 'not found', c: CY, bold: true },
+        { k: 'L(theta*)', v: '0.000000000', c: PH },
+        { t: 1, k: '' },
+        { t: 1, k: 'it was paid to walk down a hill', c: PM, a: 0.85 },
+        { t: 1, k: 'and the hill was inside a box.', c: PM, a: 0.85 },
+        { t: 1, k: 'the reward never asked where', c: CD, a: 0.8 },
+        { t: 1, k: 'the box was.', c: CD, a: 0.8 },
+      ], { title: 'SIMULATION' });
+    } else if (t >= tEXEC - 0.2) {
+      const c3 = MV.clamp(lay - 1, 0, 2);
+      const W = NET.W[c3];
+      const a0 = NET.a[c3], z1 = NET.z[c3];
+      const wrow = [];
+      let jm = 0;
+      for (let j2 = 1; j2 < z1.length; j2++) if (Math.abs(z1[j2]) > Math.abs(z1[jm])) jm = j2;
+      for (let i2 = 0; i2 < a0.length; i2++) {
+        wrow.push({ k: ' a' + (i2 + 1) + ' ' + a0[i2].toFixed(4), v: W[jm][i2].toFixed(4), c: CD });
+      }
+      wrow.push({ t: 1, k: '' });
+      wrow.push({ k: ' z = sum(w a) + b', v: z1[jm].toFixed(4), c: PH, bold: true });
+      wrow.push({ k: ' relu(z)', v: Math.max(0, z1[jm]).toFixed(4), c: WH });
+      UI.panel(g, t, [
+        { k: 'layer', v: (c3 === 0 ? 'h1 4->6' : (c3 === 1 ? 'h2 6->6' : 'y  6->1')), c: CY, bold: true },
+        { k: 'weights', v: (c3 === 0 ? 'W1 6x4' : (c3 === 1 ? 'W2 6x6' : 'W3 1x6')), c: CY },
+      ].concat(wrow).concat([
+        { t: 1, k: '' },
+        { t: 1, k: 'the sweep is the execution:', c: PM, a: 0.85 },
+        { t: 1, k: 'four layers, one per beat,', c: PM, a: 0.85 },
+        { t: 1, k: 'every number a multiply and a sum.', c: CD, a: 0.8 },
+      ]), { title: 'FORWARD PASS' });
+    } else if (t >= tSAT - 0.4) {
+      UI.panel(g, t, [
+        { k: 'steps paid', v: '12', c: CY },
+        { k: 'solved exactly', v: 'yes', c: WH, bold: true },
+        { k: 'theta*', v: '(0.3000, 0.5500)', c: CY },
+        { k: 'L(theta*)', v: '0.000000000', c: WH, bold: true },
+        { k: 'grad L', v: '(0.000, 0.000)', c: PH },
+        { k: 'reward r', v: '1.000000', c: WH, bar: 1, bold: true },
+        { t: 1, k: '' },
+        { t: 1, k: 'a strictly convex bowl has one', c: PM, a: 0.85 },
+        { t: 1, k: 'lowest point, and it can be', c: PM, a: 0.85 },
+        { t: 1, k: 'solved for instead of searched for.', c: PM, a: 0.85 },
+        { t: 1, k: 'that is what "only" means.', c: PH, a: 0.9 },
+      ], { title: 'SATISFACTION' });
+    } else {
+      UI.panel(g, t, [
+        { k: 'step', v: sc + ' / ' + NIT, c: CY, bold: true },
+        { k: 'lr', v: LR.toFixed(3), c: CD },
+        { k: 'L(theta)', v: curL.toFixed(5), c: CY },
+        { k: '|grad L|', v: gn.toFixed(5), c: PH },
+        { k: 'reward r', v: curR.toFixed(5), c: WH, bar: curR },
+        { k: 'sum of r', v: sumR.toFixed(3), c: CY },
+        { t: 1, k: '' },
+        { t: 1, k: 'a stimulus arrives, and the', c: PM, a: 0.85 },
+        { t: 1, k: 'parameter takes exactly one step', c: PM, a: 0.85 },
+        { t: 1, k: 'down the gradient. nothing moves', c: CD, a: 0.8 },
+        { t: 1, k: 'that was not paid for.', c: CD, a: 0.8 },
+      ], { title: 'DESCENT' });
+    }
+  }

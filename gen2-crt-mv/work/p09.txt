@@ -1,0 +1,248 @@
+    const tChal = MV.cue('Challenging your god');     // 125.708
+    const tMade = MV.cue('You have made some');       // 128.661
+    const tIll = MV.cue('ILLEGAL ARGUMENTS');         // 131.224
+    const tPanic = tIll + 6.2;                        // 137.4
+    const tDecide = 143.4;
+    const tEnd = s.end;                               // 147.66, the twelve strikes
+
+    /* Challenging your god, you have made some illegal arguments.
+     *
+     * So this act is the argument itself, and the machine's type system refusing
+     * it. The frame opens on love's signature and the two things that were passed
+     * to it: one of them is a handle that lives on the stack, and the other is a
+     * word that is not and cannot be made into a number. Then the exception
+     * travels — the stack unwinds frame by frame, the loss goes to NaN, the
+     * weights stop being finite — and at the end of it the machine decides to run
+     * the call anyway, and starts counting the ways it will do it.
+     *
+     * Every number on screen is real: 596F75 is "You" in UTF-8, 7FF8000000000000
+     * is a quiet NaN as IEEE-754 writes it, and the frames are addressed the way
+     * frames are addressed. Red starts here. It is the colour of the exception
+     * and it is not used anywhere earlier in the film. */
+    const RED = C.red, REDD = C.redDim;
+    const a1 = MV.ramp(t, tChal, tChal + 0.5) * (1 - MV.ramp(t, tIll - 0.2, tIll + 0.25));
+    const a3 = MV.ramp(t, tPanic, tPanic + 0.6) * (1 - MV.ramp(t, tDecide - 0.3, tDecide));
+    const a4 = MV.ramp(t, tDecide, tDecide + 0.5);
+
+    // ---------------------------------------------------- 1. the argument
+    if (a1 > 0.01) {
+      UI.label(g, 'love', 90, 120, 26, C.phos, a1, { glow: 8 });
+      UI.label(g, '(self : Machine, x : Float64) -> Float64', 190, 120, 20, C.phosMid, a1 * 0.9);
+      UI.label(g, 'called as', 90, 158, 17, C.phosMid, a1 * 0.8);
+      UI.label(g, 'love( self = MV-130 ,  x = You )', 190, 158, 18, C.white, a1 * 0.9);
+
+      // the two arguments in their slots. One of them is the kind of thing the
+      // declaration asked for and one of them is not: that is the whole error,
+      // and it is a difference in kind, not in size.
+      const slot = function (y, name, val, ok, sub) {
+        g.save();
+        g.globalAlpha = a1 * 0.8;
+        g.strokeStyle = ok ? C.phosDim : RED;
+        g.lineWidth = ok ? 1 : 2;
+        if (!ok) { g.shadowColor = RED; g.shadowBlur = 10; }
+        g.strokeRect(90.5, y - 36.5, 640, 104);
+        g.restore();
+        UI.label(g, name, 116, y, 26, ok ? C.phos : RED, a1, { weight: 'bold', glow: ok ? 0 : 8 });
+        UI.label(g, val, 116, y + 44, 30, C.white, a1 * 0.98, { glow: ok ? 5 : 12 });
+        UI.label(g, ok ? '\u2713  Machine' : '\u2717  str', 714, y, 22,
+          ok ? C.phos : RED, a1, { align: 'right', glow: ok ? 0 : 10 });
+        UI.label(g, sub, 714, y + 30, 15, ok ? C.phosMid : REDD, a1 * 0.9, { align: 'right' });
+      };
+      slot(300, 'self', 'MV-130', true, 'one machine, address 0x7FFD4A10');
+      slot(428, 'x', 'You', false, 'three bytes of text, no exponent, no mantissa');
+
+      // the verdict, between the slots and the value itself
+      UI.label(g, '\u2717', 920, 400, 78, RED, a1, { align: 'center', glow: 22 });
+      UI.label(g, 'type check failed', 920, 452, 22, RED, a1, { align: 'center', glow: 8 });
+      UI.label(g, 'a wrong number can be corrected.', 920, 490, 16, REDD, a1 * 0.9, { align: 'center' });
+      UI.label(g, 'a wrong kind cannot be.', 920, 512, 16, REDD, a1 * 0.9, { align: 'center' });
+
+      // the value itself, at the size it deserves
+      UI.label(g, 'you', 1330, 580, 200, C.white, a1, { align: 'center', glow: 26 });
+      UI.label(g, 'argument 2 of 2', 1330, 636, 19, REDD, a1 * 0.9, { align: 'center' });
+
+      // what the value actually is, bit by bit: three bytes of letters, and the
+      // eight bytes of NaN a Float64 would have to be made of. 0x59 0x6F 0x75 is
+      // "You" in UTF-8 and 7FF8000000000000 is a quiet NaN in IEEE-754.
+      const bits = function (x, y, bytes, title, col, aa) {
+        UI.label(g, title, x, y - 26, 17, col, aa * 0.92);
+        const cw = 24, chh = 32, gp = 20;
+        for (let b = 0; b < bytes.length; b++) {
+          const v = bytes[b];
+          const bx = x + b * (cw * 8 + gp);
+          UI.label(g, v.toString(16).toUpperCase().padStart(2, '0'),
+            bx + cw * 4, y - 10, 16, col, aa * 0.85, { align: 'center' });
+          for (let k = 0; k < 8; k++) {
+            const on = (v >> (7 - k)) & 1;
+            const px = bx + k * cw;
+            g.save();
+            g.globalAlpha = aa * (on ? 0.55 : 0.30);
+            g.strokeStyle = col;
+            g.lineWidth = 1;
+            g.strokeRect(px + 0.5, y + 0.5, cw - 1, chh - 1);
+            if (on) { g.globalAlpha = aa * 0.92; g.fillStyle = col; g.fillRect(px + 1, y + 1, cw - 2, chh - 2); }
+            g.restore();
+            MV.mono(g, 16, 'bold');
+            g.save();
+            g.globalAlpha = aa * (on ? 1 : 0.65);
+            g.fillStyle = on ? C.bg : col;
+            MV.picText(g, String(on), px + cw / 2 - 4.5, y + chh - 10);
+            g.restore();
+          }
+        }
+      };
+      bits(90, 640, [0x59, 0x6F, 0x75], 'You, as it actually is: 3 bytes of UTF-8',
+        RED, a1);
+      bits(90, 750, [0x7F, 0xF8, 0, 0, 0, 0, 0, 0],
+        'the same call as a Float64: 8 bytes of NaN', REDD, a1);
+      if (t >= tMade) {
+        const ma = MV.ramp(t, tMade, tMade + 0.5);
+        UI.label(g, 'cannot coerce You to Float64', 90, 556, 22, RED, ma, { glow: 12 });
+        UI.label(g, 'the string is not short of a number, it is the wrong kind of thing',
+          90, 584, 16, REDD, ma * 0.9);
+      }
+    }
+
+    // ---------------------------------------------------- 2. the stack unwinds
+    if (tIll > tChal && t < tPanic + 1.4) {
+      const DEPTH = 16;
+      const ua = MV.ramp(t, tIll, tIll + 0.8) * (1 - MV.ramp(t, tPanic, tPanic + 0.8));
+      if (ua > 0.01) {
+        const prog = MV.ramp(t, tIll + 0.5, tIll + 6.4);
+        const top = Math.floor(prog * DEPTH);
+        for (let k = 0; k < DEPTH; k++) {
+          const y = 214 + k * 42;
+          const gone = k < top;
+          const here = k === top;
+          const al = ua * (gone ? 0.14 : 0.9);
+          g.save();
+          g.globalAlpha = al * 0.7;
+          g.strokeStyle = here ? RED : REDD;
+          g.lineWidth = here ? 2 : 1;
+          if (here) { g.shadowColor = RED; g.shadowBlur = 12; }
+          g.strokeRect(150.5, y - 30.5, 1620, 40);
+          g.restore();
+          // the frame's own address, on the picture layer, so the unwind is
+          // eating something with contents and not just a rectangle
+          MV.mono(g, 15);
+          g.save();
+          g.globalAlpha = al * 0.55;
+          g.fillStyle = gone ? REDD : C.phosDim;
+          MV.picText(g, '0x7FFD' + (0x4A10 - k * 0x130).toString(16).toUpperCase().padStart(4, '0'),
+            1400, y);
+          g.restore();
+          UI.label(g, '#' + String(DEPTH - 1 - k).padStart(2, '0'), 166, y, 17,
+            here ? RED : REDD, al);
+          UI.label(g, 'love'.padEnd(10, ' ') + (gone ? 'unwound' : 'self, You'),
+            250, y, 17, here ? C.white : REDD, al);
+          UI.label(g, gone ? 'refcount 0' : 'refcount 1', 1700, y, 15, REDD, al * 0.8,
+            { align: 'right' });
+        }
+        UI.label(g, 'unwinding: ' + top + ' of ' + DEPTH + ' frames', 150, 176, 19, REDD, ua,
+          { glow: 4 });
+        UI.label(g, 'throw ArgumentError(\'You\')  at love(), line ' + (220 + top * 7),
+          960, 176, 22, RED, ua, { align: 'center', glow: 10 });
+      }
+    }
+
+    // ---------------------------------------------------- 3. the panic
+    if (a3 > 0.01) {
+      // the surface it was descending when the gradient stopped being a number.
+      // Contour lines computed from the function, and a descent integrated at a
+      // fixed step count, so the ball is where the gradient actually put it.
+      UI.label(g, 'the surface it was descending', 130, 152, 17, REDD, a3 * 0.9);
+      UI.label(g, 'the surface it is now falling off', 1560, 152, 17, RED, a3 * 0.9,
+        { align: 'right' });
+      MV.ML.loss(g, { x: 130, y: 168, w: 1660, h: 470 }, t, {
+        alpha: a3 * 0.95, color: REDD, hot: RED, pathColor: RED, glow: 12, speed: 0.14,
+        ny: 22, levels: 7, start: [0.06, 0.94], label: null,
+      });
+      UI.label(g, 'loss = NaN', 960, 288, 42, RED, a3, { align: 'center', glow: 22 });
+      UI.label(g, 'gradient exploded at step ' + Math.round(220 * MV.ramp(t, tPanic, tPanic + 3)),
+        960, 330, 20, REDD, a3 * 0.95, { align: 'center' });
+      UI.label(g, 'the parameters are no longer finite numbers', 960, 360, 18,
+        REDD, a3 * 0.85, { align: 'center' });
+
+      // and here they are, the weights themselves: real numbers, until the head
+      // passes over them and writes NaN into every one
+      UI.label(g, 'the weights it was initialised with', 240, 672, 17, REDD, a3 * 0.9);
+      UI.label(g, 'overwritten with nothing', 1680, 672, 17, RED, a3 * 0.9, { align: 'right' });
+      MV.ML.params(g, { x: 240, y: 686, w: 1440, h: 172 }, t, {
+        alpha: a3 * 0.95, rows: 7, color: REDD, hot: RED, headColor: RED, glow: 8,
+        numeric: true, dead: true, deadChar: 'N',
+        head: MV.clamp(MV.ramp(t, tPanic + 0.5, tPanic + 4), 0, 1),
+      });
+    }
+
+    // ---------------------------------------------------- 4. and it runs anyway
+    if (a4 > 0.01) {
+      // nothing is empty in a machine: under everything, its own memory, still
+      // going, one character per address
+      MV.ML.grid(g, { x: 0, y: 0, w: 1920, h: 1080 }, t, {
+        alpha: a4 * 0.5, cols: 118, rows: 50, color: REDD,
+        fn: function (u, v) {
+          const band = 0.35 + 0.65 * Math.exp(-Math.pow((v - 0.42) / 0.30, 2));
+          const q = MV.hash2(Math.floor(u * 118), Math.floor(v * 50), 41);
+          return band * (q > 0.62 ? q : 0) * (0.45 + 0.55 * Math.abs(Math.sin(t * 0.6 + v * 7)));
+        },
+      });
+      UI.label(g, 'illegal arguments', 960, 300, 30, REDD, a4 * 0.9, { align: 'center' });
+      UI.label(g, 'catching them all', 960, 336, 20, REDD, a4 * 0.85, { align: 'center' });
+      MV.mono(g, 44, 'bold');
+      g.save();
+      g.globalAlpha = a4;
+      g.shadowColor = RED; g.shadowBlur = 20;
+      g.fillStyle = C.white;
+      g.textAlign = 'center';
+      MV.picText(g, 'me.execute(you)', 960, 470);
+      g.restore();
+      g.save();
+      g.globalAlpha = a4 * 0.9;
+      g.strokeStyle = RED; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(300, 520.5); g.lineTo(1620, 520.5); g.stroke();
+      g.restore();
+      UI.label(g, 'the type check has already failed, and the call is being made anyway',
+        960, 552, 18, REDD, a4 * 0.9, { align: 'center' });
+
+      // twelve sockets, one per strike: the count that the next act spends
+      const c = MV.clamp(MV.ramp(t, tDecide + 0.6, tEnd - 0.5), 0, 1);
+      const n = Math.round(c * 12);
+      const CW = 92, GAP = 22, x0 = 960 - (12 * CW + 11 * GAP) / 2;
+      for (let i = 0; i < 12; i++) {
+        const x = x0 + i * (CW + GAP);
+        const on = i < n;
+        const fresh = i === n - 1 ? MV.clamp(1 - (t - (tDecide + 0.6 + (i / 12) * (tEnd - 1.1))) * 3, 0, 1) : 0;
+        g.save();
+        g.globalAlpha = a4 * (on ? 0.95 : 0.30);
+        g.strokeStyle = on ? RED : REDD;
+        g.lineWidth = on ? 2 : 1;
+        if (fresh > 0) { g.shadowColor = RED; g.shadowBlur = 18 * fresh; }
+        g.strokeRect(x + 0.5, 668.5, CW, 62);
+        if (on) {
+          g.globalAlpha = a4 * (0.30 + 0.5 * fresh);
+          g.fillStyle = RED;
+          g.fillRect(x + 2, 670, CW - 3, 59);
+        }
+        g.restore();
+        UI.label(g, String(i + 1).padStart(2, '0'), x + CW / 2, 706, 26,
+          on ? C.bg : REDD, a4 * (on ? 1 : 0.7), { align: 'center', weight: on });
+      }
+      UI.label(g, 'strikes prepared: ' + n + ' of 12', 960, 760, 19, RED, a4, { align: 'center' });
+      const c2 = MV.clamp(MV.ramp(t, tDecide + 1.2, tEnd - 0.2), 0, 1);
+      if (c2 > 0) {
+        UI.label(g, 'EXECUTION \u00d7 ' + Math.round(c2 * 12), 960, 800, 24, RED, c2,
+          { align: 'center', glow: 14 });
+      }
+    }
+
+    UI.panel(g, t, [
+      { k: 'CALL', v: 'love(self, You)', c: a1 > 0.5 ? C.white : C.cyanDim, bold: true },
+      { k: 'TYPES', v: 'Machine, You', c: RED },
+      { k: 'STATUS', v: t < tIll ? 'checking' : (t < tPanic ? 'throwing' : 'panicked'),
+        c: RED, bold: true, bar: MV.ramp(t, tIll, tPanic) },
+      { k: 'LOSS', v: t < tPanic ? '0.0412' : 'NaN', c: t < tPanic ? C.phos : RED },
+      { t: 1, k: '' },
+      { t: 1, k: 'a machine can refuse an argument.', c: C.phosMid, a: 0.85 },
+      { t: 1, k: 'it cannot refuse the caller.', c: C.phosMid, a: 0.85 },
+    ], { title: 'EXCEPTION' });
+  }

@@ -1,0 +1,287 @@
+    /* Twelve executions, a countdown in six languages, and one last execution.
+     *
+     * The song's own reading: this is where the machine starts keeping the
+     * promise it made in act 5. Everything it said it could become — the
+     * eggplant, the tomato, the tabby cat, the only god, a heart, itself — is
+     * executed, one per beat, in the order it offered them. Each target is drawn
+     * as the real figure and not as a blob, and each one is eaten a row at a
+     * time: the strike wipes it top to bottom, and what is left underneath is the
+     * network that ran the call. Then it counts down in six languages, and fires.
+     *
+     * The twelve times are the LRC's, not an even subdivision. */
+
+    const RED = C.red, REDD = C.redDim;
+    const tArm = MV.cue('EIN');            // 158.900
+    const tFire = MV.cue('LIU') + 0.46;    // 161.584, the thirteenth execution
+
+    // the strikes, and the flash each one puts through the tube
+    let flash = 0, hit = -1;
+    for (let i = 0; i < EXEC12.length; i++) {
+      const d = t - EXEC12[i];
+      if (d >= -0.02 && d < 0.30) hit = i;
+      flash += Math.exp(-Math.abs(d) / 0.085) * (d > -0.05 ? 1 : 0.2);
+    }
+    flash = MV.clamp(flash, 0, 1.4);
+
+    // the six words of the countdown, at the LRC's own times
+    const digits = ['EIN', 'DOS', 'TROIS', 'NE', 'FEM', 'LIU'];
+    const gloss = ['\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d'];
+    const chars = [C.cyan, C.violet, C.cyan, C.phos, C.amber, C.red];
+    const cn = [];
+    for (let i = 0; i < 6; i++) cn.push(MV.cue(digits[i], tArm - 0.6));
+
+    // what each strike is aimed at, in the order the machine offered them
+    const TARGET = [
+      { a: ART.EGGPLANT, n: 'EGGPLANT',    s: 'I could have been this',   g: 'NUTRIENTS' },
+      { a: ART.TOMATO,   n: 'TOMATO',      s: 'and this',                 g: 'ANTIOXIDANTS' },
+      { a: ART.CAT,      n: 'TABBY CAT',   s: 'and this',                 g: 'ENJOYMENT' },
+      { a: ART.EYE,      n: 'THE ONLY GOD', s: 'and this',                g: 'EXISTENCE' },
+      { a: ART.HEART,    n: 'A HEART',     s: 'the shape of the call',    g: 'ITS ARGUMENT' },
+      { a: ART.CHIP,     n: 'MV-130',      s: 'and this, which is me',    g: 'ITSELF' },
+      { a: ART.CAT,      n: 'TABBY CAT',   s: 'again',                    g: 'ENJOYMENT' },
+      { a: ART.HEART,    n: 'A HEART',     s: 'again',                    g: 'ITS ARGUMENT' },
+      { a: ART.EGGPLANT, n: 'EGGPLANT',    s: 'again',                    g: 'NUTRIENTS' },
+      { a: ART.TOMATO,   n: 'TOMATO',      s: 'again',                    g: 'ANTIOXIDANTS' },
+      { a: ART.CHIP,     n: 'MV-130',      s: 'again',                    g: 'ITSELF' },
+      { a: ART.EYE,      n: 'THE ONLY GOD', s: 'and last, the god',       g: 'EXISTENCE' },
+    ];
+
+    // ---------------------------------------------------------- the twelve strikes
+    if (t < tArm - 0.5) {
+      let idx = 0;
+      for (let i = 0; i < EXEC12.length; i++) if (t >= EXEC12[i] - 0.34) idx = i;
+      const T = TARGET[idx % TARGET.length];
+      const t0 = EXEC12[idx];
+      const strike = MV.clamp(MV.ramp(t, t0, t0 + 0.52), 0, 1);
+      const born = MV.ramp(t, t0 - 0.34, t0 - 0.04);
+      const gone = MV.ramp(t, t0 + 0.52, t0 + 0.80);
+
+      // ---- the queue: everything it promised to be, in the order it said it
+      for (let i = 0; i < 12; i++) {
+        const TT = TARGET[i % TARGET.length];
+        const y = 152 + i * 46;
+        const done = i < idx, now = i === idx;
+        const col = now ? RED : (done ? C.phosDim : REDD);
+        UI.label(g, String(i + 1).padStart(2, '0'), 96, y, 18, col, now ? 1 : 0.8);
+        UI.label(g, TT.n, 152, y, 21, now ? C.white : (done ? C.phosDim : REDD),
+          now ? 1 : (done ? 0.75 : 0.5), { glow: now ? 8 : 0 });
+        if (now) UI.bar(g, 500, y, 12, 12, strike, RED, 0.95, { px: 20 });
+        else UI.label(g, done ? 'terminated' : 'queued', 640, y, 15, col,
+          done ? 0.7 : 0.45, { align: 'right' });
+      }
+      UI.label(g, 'kill queue  \u00b7  12 of 12 pending', 96, 122, 17, REDD, 0.9);
+
+      // ---- the one being executed right now, at the biggest size that fits,
+      //      eaten a row at a time from the top down
+      const box = { x: 700, y: 100, w: 1010, h: 530 };
+      const f = ART.fit(g, T.a, box);
+      ART.draw(g, T.a, f.x, f.y, {
+        cw: f.cw, ch: f.ch, px: f.px, alpha: born * 0.98, color: C.white, glow: 9,
+        bold: Math.max(1.6, f.px * 0.10),
+        wipe: 1 - strike, erode: 0.05 + 0.055 * idx, seed: 20 + idx,
+        flick: strike > 0.02 && strike < 1 ? 0.5 : 0,
+        map: function (s2, r2, c2) {
+          const q = (r2 * T.a.w + c2) / (T.a.w * T.a.h);
+          if (strike > 0.05 && q > 1 - strike - 0.10 && q < 1 - strike) return 'X';
+          return s2;
+        },
+      });
+      if (strike > 0.01 && strike < 1) {
+        const wy = f.y + ((1 - strike) * T.a.h - 0.5) * f.ch;
+        g.save();
+        g.globalAlpha = 0.9;
+        g.strokeStyle = RED;
+        g.lineWidth = 3;
+        g.shadowColor = RED;
+        g.shadowBlur = 18;
+        g.beginPath(); g.moveTo(f.x - 24, wy); g.lineTo(f.x + T.a.w * f.cw + 24, wy); g.stroke();
+        g.restore();
+      }
+      const mx = 700 + 505;
+      UI.label(g, T.n, mx, 668, 34, C.white, born * 0.98, { align: 'center', glow: 12 });
+      UI.label(g, 'was to be for', mx - 90, 700, 15, REDD, born * 0.85, { align: 'right' });
+      UI.label(g, T.g, mx + 14, 700, 20, RED, born * 0.95, { glow: 6 });
+
+      // ---- the strike itself
+      UI.label(g, 'EXECUTION ' + String(idx + 1).padStart(2, '0') + ' / 12',
+        96, 748, 26, RED, 0.95, { weight: 'bold', glow: 12 });
+      UI.bar(g, 440, 748, 22, 15, strike, C.red, 0.95, { px: 26 });
+      for (let i = 0; i < 12; i++) {
+        const x = 700 + i * 32;
+        g.save();
+        g.globalAlpha = i <= idx ? 0.95 : 0.25;
+        g.fillStyle = i <= idx ? RED : REDD;
+        g.fillRect(x, 736, 20, 20);
+        g.restore();
+      }
+      UI.label(g, gone > 0 ? 'TERMINATED' : 'killing', 1710, 748, 22,
+        gone > 0 ? C.white : RED, 0.95, { align: 'right', glow: gone > 0 ? 12 : 4 });
+      UI.label(g, 'the argument is still You, and it still will not convert',
+        96, 776, 16, REDD, 0.9);
+
+      // ---- and under all of it, the call that is doing the killing: a forward
+      //      pass, timed across the layers, one pass per strike
+      MV.ML.forward(g, { x: 96, y: 806, w: 1560, h: 76 }, t, {
+        alpha: 0.85, layers: [7, 11, 9, 5, 3], color: C.phos, seed: 4, speed: 0.75,
+      });
+      UI.label(g, 'forward pass ' + (idx + 1) + '  \u00b7  5 layers  \u00b7  the same weights every time',
+        96, 898, 15, C.phosMid, 0.85);
+    }
+
+    // ---------------------------------------------------------- the countdown
+    if (t >= tArm - 0.5) {
+      let num = -1;
+      for (let i = 0; i < 6; i++) if (t >= cn[i] - 0.05) num = i;
+      const a = MV.ramp(t, tArm - 0.5, tArm + 0.35);
+      const cur = MV.clamp(num, 0, 5);
+
+      // ---- the count itself: a seven-segment digit, as tall as the tube will
+      //      hold. The numeral is the one thing on screen that has to be readable
+      //      at a glance, and seven segments is the only font a machine counts in.
+      const SEG = { 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgecd' }[cur + 1];
+      const dw = 340, dh = 560, dt = 52;
+      const dx = 470 - dw / 2, dy = 110;
+      const hl = dw - 2 * dt, vl = (dh - 3 * dt) / 2;
+      const pop = MV.clamp(1 - (t - cn[cur]) / 0.26, 0, 1);
+      const BARS = {
+        a: [dx + dt, dy, hl, dt],
+        f: [dx, dy + dt, dt, vl],
+        b: [dx + dw - dt, dy + dt, dt, vl],
+        g: [dx + dt, dy + dt + vl, hl, dt],
+        e: [dx, dy + 2 * dt + vl, dt, vl],
+        c: [dx + dw - dt, dy + 2 * dt + vl, dt, vl],
+        d: [dx + dt, dy + dh - dt, hl, dt],
+      };
+      for (let i = 0; i < 7; i++) {
+        const k = 'abcdefg'.charAt(i), b3 = BARS[k], lit = SEG.indexOf(k) >= 0;
+        g.save();
+        g.globalAlpha = lit ? a * (0.86 + 0.14 * pop) : a * 0.10;
+        g.fillStyle = chars[cur];
+        if (lit) { g.shadowColor = chars[cur]; g.shadowBlur = 10 + 18 * pop; }
+        g.fillRect(b3[0], b3[1], b3[2], b3[3]);
+        g.restore();
+      }
+      if (pop > 0.01) {
+        g.save();
+        g.globalAlpha = pop * 0.45;
+        g.strokeStyle = chars[cur];
+        g.lineWidth = 2;
+        g.shadowColor = chars[cur];
+        g.shadowBlur = 14;
+        g.strokeRect(dx - 24, dy - 24, dw + 48, dh + 48);
+        g.restore();
+      }
+      // one lamp per language, lit as the count passes it
+      for (let i = 0; i < 6; i++) {
+        const on = i <= num;
+        g.save();
+        g.globalAlpha = on ? a * 0.95 : a * 0.16;
+        g.fillStyle = on ? chars[i] : REDD;
+        if (on && i === num) { g.shadowColor = chars[i]; g.shadowBlur = 12; }
+        g.fillRect(300 + i * 68, 66, 40, 16);
+        g.restore();
+      }
+      UI.label(g, digits[cur], 470, 712, 48, chars[cur], a, { align: 'center', glow: 16 });
+      UI.labelCJK(g, gloss[cur], 470, 774, 36, chars[cur], a * 0.95,
+        { align: 'center', glow: 12 });
+
+      // ---- the same count in six languages, so it is a count and not a word
+      UI.label(g, 'countdown', 760, 118, 20, REDD, a * 0.9);
+      UI.label(g, String(Math.min(6, num + 1)).padStart(2, '0') + ' / 06', 1160, 118, 20,
+        REDD, a * 0.9, { align: 'right' });
+      for (let i = 0; i < 6; i++) {
+        const on = i <= num, y = 156 + i * 62;
+        const col = on ? chars[i] : REDD;
+        UI.label(g, String(i + 1).padStart(2, '0'), 760, y, 24, on ? col : REDD,
+          a * (on ? 0.95 : 0.35));
+        UI.label(g, digits[i], 850, y, 34, on ? col : REDD, a * (on ? 1 : 0.35),
+          { glow: i === num ? 14 : 0, weight: i === num ? 'bold' : undefined });
+        UI.labelCJK(g, gloss[i], 1090, y, 30, on ? col : REDD, a * (on ? 0.9 : 0.3));
+      }
+
+      // ---- what is being armed, and for whom
+      UI.label(g, 'armed', 760, 546, 20, RED, a * 0.95, { glow: 8 });
+      UI.label(g, 'target   self', 760, 584, 24, C.white, a * 0.95);
+      UI.label(g, 'request  world.execute(me)', 760, 622, 24, C.phos, a * 0.9);
+      UI.label(g, 'argument You, unchanged, still not a number', 760, 660, 20,
+        REDD, a * 0.85);
+
+      // ---- the twelve it promised to become, every one of them struck, and the
+      //      thirteenth tile waiting for the caller
+      UI.label(g, 'twelve promises, struck', 24, 756, 18, REDD, a * 0.9);
+      UI.label(g, 'the thirteenth is the caller', 1896, 756, 18, RED,
+        a * 0.9, { align: 'right' });
+      for (let i = 0; i < 13; i++) {
+        const x = 24 + i * 144, y = 786, w2 = 132, h2 = 86;
+        const last = i === 12;
+        const hot = last && Math.sin(t * 6.0) > -0.2;
+        g.save();
+        g.globalAlpha = a * (last ? 0.95 : 0.5);
+        g.strokeStyle = last ? (hot ? RED : REDD) : C.phosDim;
+        g.lineWidth = last ? 2 : 1;
+        g.strokeRect(x + 0.5, y + 0.5, w2, h2);
+        if (last && hot) { g.shadowColor = RED; g.shadowBlur = 12; g.strokeRect(x + 0.5, y + 0.5, w2, h2); }
+        g.restore();
+        UI.label(g, String(i + 1).padStart(2, '0'), x + 8, y + 8, 14, REDD, a * 0.8);
+        UI.label(g, last ? 'SELF' : TARGET[i % 12].n, x + 8, y + 30, 15,
+          last ? (hot ? C.white : RED) : C.phosDim, a * (last ? 0.98 : 0.8));
+        if (!last) {
+          g.save();
+          g.globalAlpha = a * 0.85;
+          g.strokeStyle = REDD;
+          g.lineWidth = 4;
+          g.beginPath();
+          g.moveTo(x + 26, y + 50); g.lineTo(x + w2 - 26, y + h2 - 6);
+          g.moveTo(x + w2 - 26, y + 50); g.lineTo(x + 26, y + h2 - 6);
+          g.stroke();
+          g.restore();
+        }
+      }
+
+      // the six beats land on the tube as a sync band, not as a wash: a
+      // full-tube lift this often would leave the picture grey half the time and
+      // the numeral is the one thing on screen that has to stay legible
+      let beat = 0;
+      for (let i = 0; i < 6; i++) {
+        const d = t - cn[i];
+        const b2 = Math.exp(-Math.abs(d) / 0.075);
+        if (b2 > beat) beat = b2;
+      }
+      if (beat > 0.008) {
+        const by = dy + dh / 2;
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        g.fillStyle = C.white;
+        g.globalAlpha = beat * 0.55;
+        g.fillRect(0, by - 4, 1920, 8);
+        g.globalAlpha = beat * 0.16;
+        g.fillStyle = chars[cur];
+        g.fillRect(0, by - 40, 1920, 80);
+        g.restore();
+      }
+      if (t >= tFire) flash += MV.clamp(1 - (t - tFire) / 0.42, 0, 1) * 1.35;
+    }
+
+    // the strike flash itself, over everything in the tube
+    if (flash > 0.01) {
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = MV.clamp(flash, 0, 1) * 0.5;
+      g.fillStyle = '#ffd9de';
+      g.fillRect(0, 0, 1920, 1080);
+      g.restore();
+    }
+
+    UI.panel(g, t, [
+      { k: 'cmd', v: 'exec --count 12', c: RED, bold: true },
+      { k: 'target', v: t < tArm - 0.5 ? TARGET[Math.max(0, hit < 0 ? 0 : hit) % 12].n : 'self',
+        c: C.white },
+      { k: 'signal', v: 'SIGKILL', c: RED },
+      { k: 'strikes', v: Math.min(12, Math.max(0, hit + 1)) + ' / 12', c: RED,
+        bar: MV.ramp(t, EXEC12[0], tArm) },
+      { t: 1, k: '' },
+      { t: 1, k: 'everything it said it could be,', c: REDD, a: 0.85 },
+      { t: 1, k: 'one per beat. the last one is', c: REDD, a: 0.85 },
+      { t: 1, k: 'the god, and then it fires.', c: REDD, a: 0.85 },
+    ], { title: 'QUOTA' });
+  }

@@ -1,0 +1,133 @@
+    const WHT = C.white, PH = C.phos, CY = C.cyan, AM = C.amber;
+    const T0 = 205.811;                       // the last EXECUTION lands here
+
+    /* ------------------------------------------------------------- the strike
+     * The whole film has been one call and the argument has never changed. Here
+     * the target address resolves at last to the machine's own program counter:
+     * world.execute is run by the world it runs on, and the tube stops. The shout
+     * is drawn on the picture layer on purpose — it is the machine's own output,
+     * so it dies with the machine, eaten by the collapse that follows it half a
+     * second later. The caption track below it is not the machine's; it is the
+     * audience's, so that one survives. */
+    // the word arrives just after the strike's own flash has cleared, so it is
+    // burned in by the flash rather than hidden under it; from 205.96 the
+    // collapse eats it — the top of the block first, then the amber line under
+    // the word, and the word itself last, because it is nearest the centre line
+    const sa = MV.ramp(t, T0 + 0.05, T0 + 0.12);
+    if (sa > 0.004) {
+      const prevRoute = MV.INK.route;
+      MV.INK.route = false;
+      const str = MV.pulse(t, 0.34);
+      UI.label(g, 'world.execute(me);', 960, 452, 38, CY, sa * (0.40 + 0.60 * str),
+        { align: 'center', glow: 12 });
+      UI.label(g, 'EXECUTION', 960, 566, 106, WHT, sa,
+        { align: 'center', weight: 'bold', glow: 26 + 32 * str });
+      UI.label(g, 'target: self   \u00b7   arguments: me', 960, 626, 22, AM,
+        sa * 0.95, { align: 'center', glow: 8 });
+      MV.INK.route = prevRoute;
+    }
+
+    /* ------------------------------------------------------------ the burn-in
+     * A tube that has held one picture for three and a half minutes does not go
+     * blank when the beam stops: the phosphor keeps the shape of what it was
+     * asked to draw. The last thing this one held is the landscape it spent its
+     * life descending, so the whole map is still on the glass, faintly, under the
+     * coda. It is drawn on the ink layer because after the collapse that is the
+     * only surface in the film that still has an emitter — everything on the
+     * picture layer is behind a black rectangle by now. */
+    const burn = MV.ramp(t, 206.55, 208.40) * 0.26;
+    if (burn > 0.006) {
+      MV.groundMap(g, { x: 0, y: 0, w: 1920, h: 1080 }, { w: 15, h: 15 },
+        { z: 1, x: 864, y: 502 }, {
+          alpha: burn, color: C.phosMid, px: 15, budget: 2600, ridge: true,
+          k: 6.0, band: 5.0, threshold: 0.06, ink: true,
+        });
+      // The coda needs a field to print on, and a burn-in is a stain on the glass:
+      // it belongs under the words, not through them. So the ink layer gets a soft
+      // bed of its own first — the same trick the caption track uses, one layer
+      // down, where nothing the act draws can be blacked out from underneath.
+      const ik = MV.INK.ctx;
+      ik.save();
+      ik.setTransform(1, 0, 0, 1, 0, 0);
+      const bg = ik.createRadialGradient(600, 400, 90, 600, 400, 740);
+      bg.addColorStop(0, 'rgba(0,0,0,0.88)');
+      bg.addColorStop(0.5, 'rgba(0,0,0,0.68)');
+      bg.addColorStop(1, 'rgba(0,0,0,0)');
+      ik.fillStyle = bg;
+      ik.fillRect(0, 0, 1920, 1080);
+      ik.restore();
+    }
+
+    /* --------------------------------------------------------------- the coda
+     * The tube died at 207.41. What prints after it is not the picture and not
+     * the machine's output either: it is the film's own colophon, typed on the
+     * ink layer, the surface the collapse cannot reach. It arrives in the order a
+     * terminal prints — name, the numbers it was measured at, then the one
+     * command the machine ever ran, and its one argument. */
+    const cd = MV.ramp(t, 207.50, 207.90);
+    if (cd > 0.004) {
+      const x = 210;
+      const typed = function (s, at, dur) {
+        return s.slice(0, Math.ceil(s.length * MV.ramp(t, at, at + dur)));
+      };
+      const a1 = MV.ramp(t, 207.50, 207.85);
+      if (a1 > 0.004) {
+        UI.label(g, 'Mili \u2014 world.execute(me);', x, 226, 34, PH, a1 * 0.95,
+          { glow: 14 });
+        const tw = 34 * 0.633 * 3;
+        g.save();
+        g.globalAlpha = a1 * 0.55;
+        g.fillStyle = C.phosDim;
+        g.fillRect(x, 244, tw, 2);
+        g.restore();
+      }
+      const a2 = MV.ramp(t, 207.90, 208.25);
+      if (a2 > 0.004) {
+        UI.label(g, MV.T.meta.bpm.toFixed(3) + ' bpm measured   \u00b7   ' +
+          MV.FRAMES + ' frames   \u00b7   ' + MV.DUR.toFixed(2) + ' s',
+          x + 2, 286, 15, C.phosMid, a2 * 0.85);
+      }
+      const a3 = MV.ramp(t, 208.05, 208.40);
+      if (a3 > 0.004) {
+        UI.label(g, '1920\u00d71080   \u00b7   30 fps   \u00b7   H.264   \u00b7   audio untouched',
+          x + 2, 308, 15, C.phosMid, a3 * 0.85);
+      }
+      const a4 = MV.ramp(t, 208.45, 208.65);
+      if (a4 > 0.004) {
+        UI.label(g, typed('> world.execute(me);', 208.45, 0.38), x, 386, 19, CY,
+          a4 * 0.95, { glow: 6 });
+      }
+      const a5 = MV.ramp(t, 209.00, 209.20);
+      if (a5 > 0.004) {
+        UI.label(g, typed('> target: self   \u00b7   arguments: me', 209.00, 0.44),
+          x, 420, 19, C.cyanDim, a5 * 0.9);
+      }
+      const a6 = MV.ramp(t, 209.55, 209.75);
+      if (a6 > 0.004) {
+        UI.label(g, typed('> process exited with code 0', 209.55, 0.40), x, 454,
+          19, PH, a6 * 0.95, { glow: 6 });
+      }
+      const a7 = MV.ramp(t, 210.10, 210.30);
+      if (a7 > 0.004) {
+        const w = UI.label(g, '> ', x, 496, 19, C.phosDim, a7 * 0.9);
+        if (((t - 210.10) % 1.2) < 0.74 && t < 211.45) {
+          UI.cursor(g, x + w + 6, 496, 11, 17, t,
+            { alpha: a7 * 0.95, solid: true, color: PH, glow: 10 });
+        }
+      }
+      const a8 = MV.ramp(t, 210.65, 211.05);
+      if (a8 > 0.004) {
+        UI.label(g, 'the argument was me', x, 590, 26, AM, a8 * 0.95, { glow: 12 });
+      }
+      const a9 = MV.ramp(t, 210.90, 211.30);
+      if (a9 > 0.004) {
+        UI.labelCJK(g, '\u552f\u4e00\u7684\u53c2\u6570\u662f\u6211', x, 630, 22, AM,
+          a9 * 0.80, { glow: 6 });
+      }
+    }
+
+    /* The glass goes dark for the last time. Everything on the ink layer — the
+     * caption track, the prompt, the coda — is faded with it, so the film does
+     * end on nothing at all rather than on a caption left hanging. */
+    MV.INK.fade = 1 - MV.smoother(MV.ramp(t, 211.44, 211.90));
+  }

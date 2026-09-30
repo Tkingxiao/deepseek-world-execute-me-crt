@@ -1,0 +1,28 @@
+{
+  "name": "gen2-crt-mv",
+  "version": "4.0.0",
+  "private": true,
+  "description": "Generation 2 of deepseek-world-execute-me-crt: a beat-synced music video whose entire frame is one CRT phosphor tube. 15 acts composed frame by frame in Canvas 2D, with an ink layer that keeps every lyric crisp above the CRT post-processing.",
+  "license": "MIT",
+  "author": "MV Studio (DeepSeek, under human direction)",
+  "keywords": [
+    "music-video",
+    "crt",
+    "terminal",
+    "beat-sync",
+    "canvas",
+    "procedural-animation"
+  ],
+  "type": "commonjs",
+  "scripts": {
+    "render": "node tools/render-all.cjs",
+    "check": "node tools/check-gates.cjs && node work/zone.cjs",
+    "capture": "node tools/capture-frames.cjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "gen1-terminal-mv",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Generation 1 of deepseek-world-execute-me-crt: a beat-synced music video staged as a zoned CRT terminal (HUD / STAGE / PANEL / LOG / STATUS), with a phosphor-tinted character cutout and Manim-rendered mathematics.",
+  "license": "MIT",
+  "author": "MV Studio (DeepSeek, under human direction)",
+  "keywords": [
+    "music-video",
+    "crt",
+    "terminal",
+    "beat-sync",
+    "canvas",
+    "manim",
+    "procedural-animation"
+  ],
+  "type": "commonjs",
+  "scripts": {
+    "render": "node tools/render-all.cjs",
+    "verify": "node tools/verify-render.cjs && node tools/verify-beat-sync.cjs",
+    "audio": "node tools/decode-audio.mjs && node tools/analyze-audio.mjs && node tools/beat-energy.mjs",
+    "timeline": "node tools/build-timeline.mjs && node tools/gen-data.cjs && node tools/gen-sheet-meta.cjs"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
